@@ -10,9 +10,6 @@
 <<<<<<< HEAD
 		"--cap-add=SYS_ADMIN",
 		"--network=host"
-=======
-		"--cap-add=SYS_ADMIN"
->>>>>>> 93e583af79eae1c27c0eb37444f1d23e02bd76d2
 	],
 	"customizations": {
 		"vscode": {
