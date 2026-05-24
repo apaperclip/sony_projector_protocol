@@ -73,7 +73,7 @@ from sony_projector_protocol import Projector
 projector = Projector(
     host="192.168.1.50",
     protocol="adcp",
-    adcp_password="Projector1,
+    adcp_password="Projector,
 )
 
 await projector.connect()
