@@ -6,11 +6,6 @@ import asyncio
 import contextlib
 from dataclasses import dataclass
 
-<<<<<<< HEAD
-=======
-from sony_projector_protocol.models import Protocol
-
->>>>>>> 93e583af79eae1c27c0eb37444f1d23e02bd76d2
 SDAP_PORT = 53862
 
 
@@ -18,7 +13,6 @@ SDAP_PORT = 53862
 class DiscoveredProjector:
     """Projector details learned from SDAP."""
 
-<<<<<<< HEAD
     ip: str
     id: str | None = None
     version: int | None = None
@@ -62,17 +56,6 @@ def _parse_binary_sdap_packet(payload: bytes, ip: str) -> DiscoveredProjector | 
 
 def _parse_text_sdap_packet(payload: bytes, ip: str) -> DiscoveredProjector:
     """Parse a text-like advertisement into top-level discovery fields."""
-=======
-    host: str
-    model: str | None = None
-    serial: str | None = None
-    protocol: Protocol | None = None
-    raw: dict[str, str] | None = None
-
-
-def parse_sdap_packet(payload: bytes, host: str) -> DiscoveredProjector:
-    """Parse a text-like SDAP advertisement into normalized fields."""
->>>>>>> 93e583af79eae1c27c0eb37444f1d23e02bd76d2
     text = payload.decode("utf-8", errors="ignore")
     fields: dict[str, str] = {}
 
@@ -88,7 +71,6 @@ def parse_sdap_packet(payload: bytes, host: str) -> DiscoveredProjector:
             continue
         fields[key.strip().lower()] = value.strip()
 
-<<<<<<< HEAD
     return DiscoveredProjector(
         ip=ip,
         id=fields.get("id"),
@@ -110,38 +92,13 @@ def parse_sdap_packet(payload: bytes, ip: str) -> DiscoveredProjector:
     return _parse_text_sdap_packet(payload, ip)
 
 
-=======
-    protocol_hint = fields.get("protocol") or fields.get("service") or fields.get("type")
-    protocol = None
-    if protocol_hint:
-        lowered = protocol_hint.lower()
-        if "adcp" in lowered:
-            protocol = Protocol.ADCP
-        elif "sdcp" in lowered or "pj" in lowered:
-            protocol = Protocol.SDCP
-
-    return DiscoveredProjector(
-        host=host,
-        model=fields.get("model") or fields.get("modelname") or fields.get("name"),
-        serial=fields.get("serial") or fields.get("serialnumber"),
-        protocol=protocol,
-        raw=fields,
-    )
-
-
->>>>>>> 93e583af79eae1c27c0eb37444f1d23e02bd76d2
 class _SdapProtocol(asyncio.DatagramProtocol):
     def __init__(self) -> None:
         self.devices: dict[str, DiscoveredProjector] = {}
 
     def datagram_received(self, data: bytes, addr: tuple[str, int]) -> None:
-<<<<<<< HEAD
         ip = addr[0]
         self.devices[ip] = parse_sdap_packet(data, ip)
-=======
-        host = addr[0]
-        self.devices[host] = parse_sdap_packet(data, host)
->>>>>>> 93e583af79eae1c27c0eb37444f1d23e02bd76d2
 
 
 async def discover(timeout: float = 5.0, *, port: int = SDAP_PORT) -> list[DiscoveredProjector]:

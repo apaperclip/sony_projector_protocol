@@ -75,6 +75,48 @@ def test_sdcp_power_status_exposes_projector_state() -> None:
     asyncio.run(run())
 
 
+def test_sdcp_getters_use_expected_item_numbers() -> None:
+    async def run() -> None:
+        cases = [
+            ("get_calibration_preset", 0x0002, 0x0008, "user"),
+            ("get_color_temp", 0x0017, 0x0002, 2),
+            ("get_lamp_control", 0x001A, 0x0001, "high"),
+            ("get_contrast_enhancer", 0x001C, 0x0003, "middle"),
+            ("get_advanced_iris", 0x001D, 0x0002, "full"),
+            ("get_aspect_ratio", 0x0020, 0x000C, "zoom_1_85"),
+            ("get_gamma_correction", 0x0022, 0x0005, 5),
+            ("get_picture_muting", 0x0030, 0x0000, "off"),
+            ("get_color_space", 0x003B, 0x0008, 8),
+            ("get_motionflow", 0x0059, 0x0005, "true_cinema"),
+            ("get_2d_3d_display_select", 0x0060, 0x0002, "2d"),
+            ("get_3d_format", 0x0061, 0x0001, "side_by_side"),
+            ("get_picture_position", 0x0066, 0x0003, "custom_2"),
+            ("get_reality_creation", 0x0067, 0x0001, 1),
+            ("get_hdmi1_dynamic_range", 0x006E, 0x0002, "full"),
+            ("get_hdmi2_dynamic_range", 0x006F, 0x0001, "limited"),
+            ("get_hdr", 0x007C, 0x0002, "auto"),
+            ("get_input_lag_reduction", 0x0099, 0x0001, "on"),
+            ("get_menu_position", 0x00A6, 0x0001, "center"),
+            ("get_error_status", 0x0101, 0x0000, "no_error"),
+            ("get_lamp_timer", 0x0113, 0x035E, 862),
+        ]
+        values = {command: value for _, command, value, _ in cases}
+
+        def respond(payload: bytes) -> bytes:
+            command = int.from_bytes(payload[7:9], byteorder="big")
+            value = values[command]
+            return b"\x02\x0aSONY\x01" + command.to_bytes(2, "big") + b"\x02" + value.to_bytes(2, "big")
+
+        transport = FakeTransport(respond)
+        client = SdcpClient("192.0.2.10", transport=transport)
+
+        for method_name, command, _value, expected in cases:
+            assert await getattr(client, method_name)() == expected
+            assert transport.requests[-1] == b"\x02\x0aSONY\x01" + command.to_bytes(2, "big") + b"\x00"
+
+    asyncio.run(run())
+
+
 def test_projector_facade_uses_configured_protocol() -> None:
     async def run() -> None:
         transport = FakeTransport(lambda payload: b"power=standby\r")
@@ -110,6 +152,27 @@ def test_projector_facade_uses_configured_sdcp_protocol() -> None:
     asyncio.run(run())
 
 
+def test_projector_facade_exposes_sdcp_specific_getters() -> None:
+    async def run() -> None:
+        get_lamp_timer = bytes.fromhex("02 0A 53 4F 4E 59 01 01 13 00")
+        lamp_timer_response = bytes.fromhex("02 0A 53 4F 4E 59 01 01 13 02 03 5E")
+
+        def respond(payload: bytes) -> bytes:
+            if payload == get_lamp_timer:
+                return lamp_timer_response
+            raise AssertionError(payload.hex(" "))
+
+        transport = FakeTransport(respond)
+        projector = Projector("192.0.2.10", protocol=Protocol.SDCP, transport=transport)
+
+        await projector.connect()
+
+        assert await projector.get_lamp_timer() == 862
+        assert transport.requests == [get_lamp_timer]
+
+    asyncio.run(run())
+
+
 def test_projector_auto_protocol_rejects_injected_transport() -> None:
     async def run() -> None:
         projector = Projector("192.0.2.10", protocol=Protocol.AUTO, transport=FakeTransport(lambda payload: b""))
@@ -120,7 +183,6 @@ def test_projector_auto_protocol_rejects_injected_transport() -> None:
     asyncio.run(run())
 
 
-<<<<<<< HEAD
 def test_parse_binary_sdap_packet() -> None:
     packet = b"".join(
         [
@@ -133,15 +195,10 @@ def test_parse_binary_sdap_packet() -> None:
             b"Theater\x00" + b"\x00" * 16,
         ]
     )
-=======
-def test_parse_sdap_packet() -> None:
-    packet = b"MODEL: VPL-XW5000ES\nSERIAL: 12345\nPROTOCOL: ADCP\n"
->>>>>>> 93e583af79eae1c27c0eb37444f1d23e02bd76d2
 
     projector = parse_sdap_packet(packet, "192.0.2.10")
 
     assert projector == DiscoveredProjector(
-<<<<<<< HEAD
         ip="192.0.2.10",
         id="DA",
         version=1,
@@ -164,11 +221,4 @@ def test_parse_text_sdap_packet_fallback_uses_discovery_fields_only() -> None:
         product_name="VPL-XW5000ES",
         serial_number=12345,
         power_status=2,
-=======
-        host="192.0.2.10",
-        model="VPL-XW5000ES",
-        serial="12345",
-        protocol=Protocol.ADCP,
-        raw={"model": "VPL-XW5000ES", "serial": "12345", "protocol": "ADCP"},
->>>>>>> 93e583af79eae1c27c0eb37444f1d23e02bd76d2
     )
