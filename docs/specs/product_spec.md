@@ -31,7 +31,10 @@ The package must support:
 ### MVP
 
 - SDAP discovery listener.
+<<<<<<< HEAD
 - Discovery should listen for 60s
+=======
+>>>>>>> 93e583af79eae1c27c0eb37444f1d23e02bd76d2
 - Manual host connection.
 - ADCP TCP client.
 - SDCP TCP client.
@@ -109,6 +112,7 @@ The current template package name (`python_package`) should be replaced before f
 
 ## Source References
 
+<<<<<<< HEAD
 - Sony common protocol manual: SDAP, ADCP, network behavior, and command flow.
   https://pro.sony/s3/2018/07/19110324/Sony_Protocol-Manual_1st-Edition-Revised-1.pdf
 - Sony supported command list: model command support and default ports.
@@ -120,4 +124,17 @@ The current template package name (`python_package`) should be replaced before f
 - ADCP Unfolded Circle implementation reference.
   https://github.com/kennymc-c/ucr-integration-sonyADCP
 - ADCP Home Assistant implementation reference.
+=======
+- Sony common protocol manual: SDAP, ADCP, network behavior, and command flow.  
+  https://pro.sony/s3/2018/07/19110324/Sony_Protocol-Manual_1st-Edition-Revised-1.pdf
+- Sony supported command list: model command support and default ports.  
+  https://pro.sony/s3/2018/07/19110602/Sony_Protocol-Manual_Supported-Command-List_1st-Edition-Revised-1.pdf
+- SDCP package reference implementation.  
+  https://github.com/kennymc-c/pySDCP-extended
+- ADCP Home Assistant implementation reference.  
+  https://github.com/tokyotexture/homeassistant-custom-components
+- ADCP Unfolded Circle implementation reference.  
+  https://github.com/kennymc-c/ucr-integration-sonyADCP
+- ADCP Home Assistant implementation reference.  
+>>>>>>> 93e583af79eae1c27c0eb37444f1d23e02bd76d2
   https://github.com/Bcukier/sony_projector_adcp
