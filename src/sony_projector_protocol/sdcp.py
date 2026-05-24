@@ -5,11 +5,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from struct import pack_into, unpack
 
-from sony_projector_protocol.exceptions import ProjectorProtocolError, UnsupportedCommandError
-from sony_projector_protocol.models import Input, ProjectorIdentity
+from sony_projector_protocol.exceptions import (ProjectorProtocolError,
+                                                UnsupportedCommandError)
 from sony_projector_protocol.transport import StreamTransport, Transport
+from sony_projector_protocol.types import ProjectorIdentity
 
 SDCP_PORT = 53484
+DEFAULT_SDCP_COMMUNITY = "SONY"
 
 _ACTION_GET = 0x01
 _ACTION_SET = 0x00
@@ -38,6 +40,10 @@ _COMMAND_MENU_POSITION = 0x00A6
 _COMMAND_STATUS_ERROR = 0x0101
 _COMMAND_STATUS_POWER = 0x0102
 _COMMAND_LAMP_TIMER = 0x0113
+_COMMAND_MODEL_NAME = 0x8001
+_COMMAND_SERIAL_NUMBER = 0x8002
+_COMMAND_INSTALLATION_LOCATION = 0x8003
+_COMMAND_MAC_ADDRESS = 0x9000
 
 _POWER_STANDBY = 0x0000
 _POWER_START_UP = 0x0001
@@ -47,8 +53,8 @@ _POWER_COOLING = 0x0004
 _POWER_COOLING2 = 0x0005
 
 _INPUT_TO_DEVICE = {
-    Input.HDMI1: 0x0002,
-    Input.HDMI2: 0x0003,
+    "hdmi1": 0x0002,
+    "hdmi2": 0x0003,
 }
 
 _INPUT_FROM_DEVICE = {value: key for key, value in _INPUT_TO_DEVICE.items()}
@@ -174,7 +180,7 @@ class SdcpHeader:
 
     version: int = 0x02
     category: int = 0x0A
-    community: str = "SONY"
+    community: str = DEFAULT_SDCP_COMMUNITY
 
 
 class SdcpClient:
@@ -186,11 +192,11 @@ class SdcpClient:
         *,
         timeout: float = 5.0,
         transport: Transport | None = None,
-        community: str = "SONY",
+        community: str | None = None,
     ) -> None:
         self.host = host
         self.timeout = timeout
-        self.header = SdcpHeader(community=community)
+        self.header = SdcpHeader(community=DEFAULT_SDCP_COMMUNITY if community is None else community)
         self.transport = transport or StreamTransport(host, SDCP_PORT, terminator=None)
 
     async def connect(self) -> None:
@@ -208,18 +214,15 @@ class SdcpClient:
     async def set_power(self, power: bool) -> None:
         await self._command(_ACTION_SET, _COMMAND_SET_POWER, _POWER_START_UP if power else _POWER_STANDBY)
 
-    async def get_input(self) -> Input | str:
+    async def get_input(self) -> str:
         data = await self._command(_ACTION_GET, _COMMAND_INPUT)
         if data is None:
             return "unknown"
         return _INPUT_FROM_DEVICE.get(data, f"0x{data:04x}")
 
-    async def set_input(self, value: Input | str) -> None:
-        try:
-            input_value: Input | str = Input(value)
-        except ValueError:
-            input_value = value
-        if not isinstance(input_value, Input):
+    async def set_input(self, value: str) -> None:
+        input_value = value.lower()
+        if input_value not in _INPUT_TO_DEVICE:
             raise UnsupportedCommandError(f"Unsupported SDCP input: {value}")
         await self._command(_ACTION_SET, _COMMAND_INPUT, _INPUT_TO_DEVICE[input_value])
 
@@ -331,8 +334,31 @@ class SdcpClient:
     async def get_lamp_timer(self) -> int | str:
         return self._value_or_unknown(await self._get(_COMMAND_LAMP_TIMER))
 
+    async def get_model_name(self) -> str:
+        return self._decode_text(await self._get_bytes(_COMMAND_MODEL_NAME))
+
+    async def get_serial_number(self) -> str:
+        data = await self._get_bytes(_COMMAND_SERIAL_NUMBER)
+        if data is None:
+            return "unknown"
+        return str(int.from_bytes(data, byteorder="big")).zfill(8)
+
+    async def get_installation_location(self) -> str:
+        return self._decode_text(await self._get_bytes(_COMMAND_INSTALLATION_LOCATION))
+
+    async def get_mac_address(self) -> str:
+        data = await self._get_bytes(_COMMAND_MAC_ADDRESS)
+        if data is None:
+            return "unknown"
+        return ":".join(f"{value:02X}" for value in data)
+
     async def get_identity(self) -> ProjectorIdentity:
-        return ProjectorIdentity()
+        return ProjectorIdentity(
+            model=await self.get_model_name(),
+            serial=await self.get_serial_number(),
+            location=await self.get_installation_location(),
+            mac_address=await self.get_mac_address(),
+        )
 
     async def _set_mapped(self, command: int, value: str, mapping: dict[str, int], label: str) -> None:
         key = _normalize_value(value)
@@ -353,10 +379,18 @@ class SdcpClient:
     async def _get(self, command: int) -> int | None:
         return await self._command(_ACTION_GET, command)
 
+    async def _get_bytes(self, command: int) -> bytes | None:
+        return await self._command_bytes(_ACTION_GET, command)
+
     def _decode(self, value: int | None, mapping: dict[int, str]) -> str:
         if value is None:
             return "unknown"
         return mapping.get(value, f"0x{value:04x}")
+
+    def _decode_text(self, value: bytes | None) -> str:
+        if value is None:
+            return "unknown"
+        return value.split(b"\x00", 1)[0].decode("ascii", errors="replace").strip()
 
     def _value_or_unknown(self, value: int | None) -> int | str:
         if value is None:
@@ -364,6 +398,14 @@ class SdcpClient:
         return value
 
     async def _command(self, action: int, command: int, data: int | None = None) -> int | None:
+        response = await self._command_bytes(action, command, data)
+        if response is None:
+            return None
+        if len(response) != 2:
+            raise ProjectorProtocolError(f"Unsupported SDCP response data length: {len(response)}")
+        return unpack(">H", response)[0]
+
+    async def _command_bytes(self, action: int, command: int, data: int | None = None) -> bytes | None:
         payload = self._create_command_buffer(action, command, data)
         raw = await self.transport.request(payload, timeout=self.timeout)
         return self._process_response(raw, command)
@@ -386,24 +428,29 @@ class SdcpClient:
             pack_into(">H", buffer, 10, data)
         return bytes(buffer)
 
-    def _process_response(self, payload: bytes, expected_command: int) -> int | None:
+    def _process_response(self, payload: bytes, expected_command: int) -> bytes | None:
         if len(payload) < 10:
             raise ProjectorProtocolError("SDCP response is shorter than the PJ Talk header")
 
         is_success = bool(payload[6])
         command = unpack(">H", payload[7:9])[0]
         data_len = payload[9]
-        data = unpack(">H", payload[10:12])[0] if data_len else None
+        if len(payload) < 10 + data_len:
+            raise ProjectorProtocolError("SDCP response data is shorter than the declared data length")
+        data = payload[10 : 10 + data_len] if data_len else None
 
         if command != expected_command:
             raise ProjectorProtocolError(
                 f"SDCP response command 0x{command:04x} did not match 0x{expected_command:04x}"
             )
         if not is_success:
-            if data == 0x0180:
-                raise UnsupportedCommandError(_RESPONSE_ERRORS[data])
-            message = _RESPONSE_ERRORS.get(data, f"Unknown SDCP error: 0x{data:04x}" if data else "Unknown SDCP error")
+            error = unpack(">H", data)[0] if data is not None and len(data) == 2 else None
+            if error == 0x0180:
+                raise UnsupportedCommandError(_RESPONSE_ERRORS[error])
+            message = (
+                _RESPONSE_ERRORS.get(error, f"Unknown SDCP error: 0x{error:04x}")
+                if error is not None
+                else "Unknown SDCP error"
+            )
             raise ProjectorProtocolError(message)
-        if data_len not in {0, 2}:
-            raise ProjectorProtocolError(f"Unsupported SDCP response data length: {data_len}")
         return data

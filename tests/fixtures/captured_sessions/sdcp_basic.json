@@ -1,0 +1,36 @@
+{
+  "protocol": "sdcp",
+  "model": "VPL-EXAMPLE",
+  "commands": [
+    {
+      "method": "get_power",
+      "request_hex": "020a534f4e5901010200",
+      "response_hex": "020a534f4e59010102020003",
+      "expected": "on"
+    },
+    {
+      "method": "get_input",
+      "request_hex": "020a534f4e5901000100",
+      "response_hex": "020a534f4e59010001020002",
+      "expected": "hdmi1"
+    },
+    {
+      "method": "get_lamp_timer",
+      "request_hex": "020a534f4e5901011300",
+      "response_hex": "020a534f4e5901011302035e",
+      "expected": 862
+    },
+    {
+      "method": "get_hdr",
+      "request_hex": "020a534f4e5901007c00",
+      "response_hex": "020a534f4e5901007c020002",
+      "expected": "auto"
+    },
+    {
+      "method": "get_error_status",
+      "request_hex": "020a534f4e5901010100",
+      "response_hex": "020a534f4e59000101020180",
+      "expected_exception": "UnsupportedCommandError"
+    }
+  ]
+}

@@ -8,8 +8,11 @@
 	},
 	"runArgs": [
 		"--cap-add=SYS_ADMIN",
-		"--network=host"
+		"--network=host",
+		"--security-opt=apparmor=unconfined",
+		"--security-opt=seccomp=unconfined"
 	],
+	"updateRemoteUserUID": true,
 	"customizations": {
 		"vscode": {
 			"extensions": [
@@ -25,7 +28,8 @@
 				"ms-vsliveshare.vsliveshare",
 				"ryanluker.vscode-coverage-gutters",
 				"bungcip.better-toml",
-				"GitHub.copilot"
+				"openai.chatgpt",
+				"openai.codex"
 			],
 			"settings": {
 				"python.defaultInterpreterPath": "/usr/local/bin/python",
@@ -44,5 +48,5 @@
 			}
 		}
 	},
-	"onCreateCommand": "pre-commit install-hooks"
+	"onCreateCommand": "pre-commit install"
 }

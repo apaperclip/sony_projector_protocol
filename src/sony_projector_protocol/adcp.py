@@ -6,22 +6,13 @@ import asyncio
 import hashlib
 import json
 
-from sony_projector_protocol.exceptions import ProjectorConnectionError, ProjectorProtocolError, UnsupportedCommandError
-from sony_projector_protocol.models import Input, PowerState, ProjectorIdentity
+from sony_projector_protocol.exceptions import (ProjectorConnectionError,
+                                                ProjectorProtocolError,
+                                                UnsupportedCommandError)
 from sony_projector_protocol.transport import StreamTransport, Transport
+from sony_projector_protocol.types import ProjectorIdentity
 
 ADCP_PORT = 53595
-
-_POWER_FROM_DEVICE = {
-    "0": PowerState.OFF,
-    "1": PowerState.ON,
-    "off": PowerState.OFF,
-    "on": PowerState.ON,
-    "standby": PowerState.STANDBY,
-    "startup": PowerState.STARTING,
-    "starting": PowerState.STARTING,
-    "cooling": PowerState.COOLING,
-}
 
 _POWER_TO_DEVICE = {
     True: "on",
@@ -29,8 +20,8 @@ _POWER_TO_DEVICE = {
 }
 
 _INPUT_TO_DEVICE = {
-    Input.HDMI1: "hdmi1",
-    Input.HDMI2: "hdmi2",
+    "hdmi1": "hdmi1",
+    "hdmi2": "hdmi2",
 }
 
 _INPUT_FROM_DEVICE = {value: key for key, value in _INPUT_TO_DEVICE.items()}
@@ -60,14 +51,13 @@ class AdcpClient:
     async def close(self) -> None:
         await self.transport.close()
 
-    async def get_power(self) -> PowerState:
-        response = await self._command("power ?")
-        return _POWER_FROM_DEVICE.get(response.lower(), PowerState.UNKNOWN)
+    async def get_power(self) -> str:
+        return await self._command("power_status ?")
 
     async def set_power(self, power: bool) -> None:
-        await self._command(f"power {_POWER_TO_DEVICE[power]}")
+        await self._command(f"power {self._quoted(_POWER_TO_DEVICE[power])}")
 
-    async def get_input(self) -> Input | str:
+    async def get_input(self) -> str:
         response = await self._command("input ?")
         return _INPUT_FROM_DEVICE.get(response.lower(), response.lower())
 
@@ -148,19 +138,15 @@ class AdcpClient:
     async def get_mac_address(self) -> str:
         return await self._command("mac_address ?")
 
-    async def set_input(self, value: Input | str) -> None:
-        try:
-            input_value: Input | str = Input(value)
-        except ValueError:
-            input_value = value
-        if isinstance(input_value, Input):
-            input_value = _INPUT_TO_DEVICE[input_value]
+    async def set_input(self, value: str) -> None:
+        input_value = _INPUT_TO_DEVICE.get(value.lower(), value)
         await self._command(f"input {input_value}")
 
     async def get_identity(self) -> ProjectorIdentity:
         model = await self._optional_command("modelname ?")
         serial = await self._optional_command("serialnum ?")
-        return ProjectorIdentity(model=model, serial=serial)
+        mac_address = await self._optional_command("mac_address ?")
+        return ProjectorIdentity(model=model, serial=serial, mac_address=mac_address)
 
     async def _optional_command(self, command: str) -> str | None:
         try:
@@ -239,7 +225,7 @@ class AdcpClient:
         if lowered in {"unsupported", "not_available", "na"}:
             raise UnsupportedCommandError(command)
         if "=" in text:
-            return text.split("=", 1)[1].strip()
+            return text.split("=", 1)[1].strip().strip('"')
         if lowered.startswith("err") or lowered.startswith("ng"):
             raise ProjectorProtocolError(f"ADCP command failed: {text}")
         return text

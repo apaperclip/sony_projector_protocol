@@ -2,34 +2,64 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import inspect
+import json
+from pathlib import Path
 
 import pytest
 
-from sony_projector_protocol import Input, PowerState, Projector, Protocol, parse_sdap_packet
+from sony_projector_protocol import (DEFAULT_SDCP_COMMUNITY, Projector,
+                                     ProjectorIdentity, discover,
+                                     parse_sdap_packet)
 from sony_projector_protocol.adcp import AdcpClient
 from sony_projector_protocol.discovery import DiscoveredProjector
-from sony_projector_protocol.exceptions import ProjectorProtocolError, UnsupportedCommandError
-from sony_projector_protocol.models import ProjectorIdentity
+from sony_projector_protocol.exceptions import UnsupportedCommandError
 from sony_projector_protocol.sdcp import SdcpClient
 from sony_projector_protocol.transport import FakeTransport, StreamTransport
+
+_FIXTURE_DIR = Path(__file__).parent / "fixtures" / "captured_sessions"
 
 
 def test_adcp_power_commands() -> None:
     async def run() -> None:
         def respond(payload: bytes) -> bytes:
-            if payload == b"power ?\r\n":
-                return b"power=on\r\n"
-            if payload == b"power off\r\n":
+            if payload == b"power_status ?\r\n":
+                return b"power_status=on\r\n"
+            if payload == b'power "off"\r\n':
                 return b"ok\r\n"
             raise AssertionError(payload)
 
         transport = FakeTransport(respond)
         client = AdcpClient("192.0.2.10", transport=transport)
 
-        assert await client.get_power() is PowerState.ON
+        assert await client.get_power() == "on"
         await client.set_power(False)
 
-        assert transport.requests == [b"power ?\r\n", b"power off\r\n"]
+        assert transport.requests == [b"power_status ?\r\n", b'power "off"\r\n']
+
+    asyncio.run(run())
+
+
+def test_adcp_power_status_values_follow_sony_command_list() -> None:
+    async def run() -> None:
+        values = (
+            "standby",
+            "startup",
+            "on",
+            "cooling1",
+            "cooling2",
+            "saving_cooling1",
+            "saving_cooling2",
+            "saving_standby",
+            "update",
+        )
+
+        for value in values:
+            transport = FakeTransport(lambda payload, value=value: f'power_status="{value}"\r\n'.encode("ascii"))
+            client = AdcpClient("192.0.2.10", transport=transport)
+
+            assert await client.get_power() == value
+            assert transport.requests == [b"power_status ?\r\n"]
 
     asyncio.run(run())
 
@@ -242,13 +272,19 @@ def test_adcp_identity_uses_sony_command_names() -> None:
                 return b"modelname=VPL-XW5000ES\r\n"
             if payload == b"serialnum ?\r\n":
                 return b"serialnum=12345\r\n"
+            if payload == b"mac_address ?\r\n":
+                return b"mac_address=00:11:22:33:44:55\r\n"
             raise AssertionError(payload)
 
         transport = FakeTransport(respond)
         client = AdcpClient("192.0.2.10", transport=transport)
 
-        assert await client.get_identity() == ProjectorIdentity(model="VPL-XW5000ES", serial="12345")
-        assert transport.requests == [b"modelname ?\r\n", b"serialnum ?\r\n"]
+        assert await client.get_identity() == ProjectorIdentity(
+            model="VPL-XW5000ES",
+            serial="12345",
+            mac_address="00:11:22:33:44:55",
+        )
+        assert transport.requests == [b"modelname ?\r\n", b"serialnum ?\r\n", b"mac_address ?\r\n"]
 
     asyncio.run(run())
 
@@ -311,38 +347,42 @@ def test_adcp_password_authentication() -> None:
         expected_digest = hashlib.sha256((challenge + "Projector1").encode("ascii")).hexdigest().encode("ascii")
         requests: list[bytes] = []
 
-        async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-            writer.write(challenge.encode("ascii") + b"\r\n")
-            await writer.drain()
+        class FakeReader:
+            def __init__(self, responses: list[bytes]) -> None:
+                self.responses = responses
 
-            digest = await reader.readuntil(b"\r\n")
-            requests.append(digest)
-            writer.write(b"ok\r\n")
-            await writer.drain()
+            async def readuntil(self, separator: bytes) -> bytes:
+                del separator
+                return self.responses.pop(0)
 
-            command = await reader.readuntil(b"\r\n")
-            requests.append(command)
-            writer.write(b'"on"\r\n')
-            await writer.drain()
-            writer.close()
-            await writer.wait_closed()
+        class FakeWriter:
+            def write(self, payload: bytes) -> None:
+                requests.append(payload)
 
-        server = await asyncio.start_server(handle_client, "127.0.0.1", 0)
+            async def drain(self) -> None:
+                return None
+
+            def close(self) -> None:
+                return None
+
+            async def wait_closed(self) -> None:
+                return None
+
+        class MemoryStreamTransport(StreamTransport):
+            async def connect(self) -> None:
+                self.reader = FakeReader([challenge.encode("ascii") + b"\r\n", b"ok\r\n", b'"on"\r\n'])  # type: ignore[assignment]
+                self.writer = FakeWriter()  # type: ignore[assignment]
+
+        transport = MemoryStreamTransport("127.0.0.1", 0, terminator=b"\r\n")
+        client = AdcpClient("127.0.0.1", transport=transport, password="Projector1")
+
+        await client.connect()
         try:
-            port = server.sockets[0].getsockname()[1]
-            transport = StreamTransport("127.0.0.1", port, terminator=b"\r\n")
-            client = AdcpClient("127.0.0.1", transport=transport, password="Projector1")
-
-            await client.connect()
-            try:
-                assert await client.get_power() is PowerState.ON
-            finally:
-                await client.close()
-
-            assert requests == [expected_digest + b"\r\n", b"power ?\r\n"]
+            assert await client.get_power() == "on"
         finally:
-            server.close()
-            await server.wait_closed()
+            await client.close()
+
+        assert requests == [expected_digest + b"\r\n", b"power_status ?\r\n"]
 
     asyncio.run(run())
 
@@ -364,9 +404,51 @@ def test_sdcp_input_commands_use_pj_talk_frames() -> None:
         transport = FakeTransport(respond)
         client = SdcpClient("192.0.2.10", transport=transport)
 
-        assert await client.get_input() is Input.HDMI1
-        await client.set_input(Input.HDMI2)
+        assert await client.get_input() == "hdmi1"
+        await client.set_input("hdmi2")
         assert transport.requests == [get_input, set_hdmi2]
+
+    asyncio.run(run())
+
+
+def test_sdcp_uses_default_community_when_not_provided() -> None:
+    async def run() -> None:
+        get_power = b"\x02\x0a" + DEFAULT_SDCP_COMMUNITY.encode("ascii") + b"\x01\x01\x02\x00"
+        power_response = b"\x02\x0a" + DEFAULT_SDCP_COMMUNITY.encode("ascii") + b"\x01\x01\x02\x02\x00\x03"
+
+        transport = FakeTransport(lambda payload: power_response)
+        client = SdcpClient("192.0.2.10", transport=transport)
+
+        assert await client.get_power() == "on"
+        assert transport.requests == [get_power]
+
+    asyncio.run(run())
+
+
+def test_sdcp_uses_configured_community() -> None:
+    async def run() -> None:
+        get_power = b"\x02\x0aABCD\x01\x01\x02\x00"
+        power_response = b"\x02\x0aABCD\x01\x01\x02\x02\x00\x03"
+
+        transport = FakeTransport(lambda payload: power_response)
+        client = SdcpClient("192.0.2.10", transport=transport, community="ABCD")
+
+        assert await client.get_power() == "on"
+        assert transport.requests == [get_power]
+
+    asyncio.run(run())
+
+
+def test_sdcp_none_community_uses_default() -> None:
+    async def run() -> None:
+        get_power = b"\x02\x0aSONY\x01\x01\x02\x00"
+        power_response = b"\x02\x0aSONY\x01\x01\x02\x02\x00\x03"
+
+        transport = FakeTransport(lambda payload: power_response)
+        client = SdcpClient("192.0.2.10", transport=transport, community=None)
+
+        assert await client.get_power() == "on"
+        assert transport.requests == [get_power]
 
     asyncio.run(run())
 
@@ -481,27 +563,65 @@ def test_sdcp_setter_rejects_unknown_value() -> None:
 def test_projector_facade_uses_configured_protocol() -> None:
     async def run() -> None:
         transport = FakeTransport(lambda payload: b"power=standby\r")
-        projector = Projector("192.0.2.10", protocol=Protocol.ADCP, transport=transport)
+        projector = Projector("192.0.2.10", protocol="adcp", transport=transport)
 
         await projector.connect()
 
         assert transport.connected is True
-        assert await projector.get_power() is PowerState.STANDBY
-        assert "power" in projector.capabilities.supported
+        assert await projector.get_power() == "standby"
 
     asyncio.run(run())
+
+
+def test_projector_requires_explicit_protocol() -> None:
+    with pytest.raises(TypeError):
+        Projector("192.0.2.10")  # type: ignore[call-arg]
+
+
+def test_projector_rejects_auto_protocol() -> None:
+    with pytest.raises(ValueError):
+        Projector("192.0.2.10", protocol="auto")
 
 
 def test_projector_facade_exposes_adcp_signal_getter() -> None:
     async def run() -> None:
         transport = FakeTransport(lambda payload: b"signal=1080p/24\r\n")
-        projector = Projector("192.0.2.10", protocol=Protocol.ADCP, transport=transport)
+        projector = Projector("192.0.2.10", protocol="adcp", transport=transport)
 
         await projector.connect()
 
         assert await projector.get_signal() == "1080p/24"
-        assert "signal" in projector.capabilities.supported
         assert transport.requests == [b"signal ?\r\n"]
+
+    asyncio.run(run())
+
+
+def test_projector_facade_rejects_wrong_protocol_command() -> None:
+    async def run() -> None:
+        projector = Projector("192.0.2.10", protocol="sdcp", transport=FakeTransport(lambda payload: b""))
+
+        await projector.connect()
+
+        with pytest.raises(UnsupportedCommandError):
+            await projector.get_signal()
+
+
+    asyncio.run(run())
+
+
+def test_projector_facade_reraises_device_unsupported_command() -> None:
+    async def run() -> None:
+        projector = Projector(
+            "192.0.2.10",
+            protocol="adcp",
+            transport=FakeTransport(lambda payload: b"unsupported\r\n"),
+        )
+
+        await projector.connect()
+
+        with pytest.raises(UnsupportedCommandError):
+            await projector.get_signal()
+
 
     asyncio.run(run())
 
@@ -509,12 +629,11 @@ def test_projector_facade_exposes_adcp_signal_getter() -> None:
 def test_projector_facade_exposes_adcp_temperature_getter() -> None:
     async def run() -> None:
         transport = FakeTransport(lambda payload: b'temperature=[{"intake_air": 29}]\r\n')
-        projector = Projector("192.0.2.10", protocol=Protocol.ADCP, transport=transport)
+        projector = Projector("192.0.2.10", protocol="adcp", transport=transport)
 
         await projector.connect()
 
         assert await projector.get_temperature() == 29
-        assert "temperature" in projector.capabilities.supported
         assert transport.requests == [b"temperature ?\r\n"]
 
     asyncio.run(run())
@@ -523,12 +642,11 @@ def test_projector_facade_exposes_adcp_temperature_getter() -> None:
 def test_projector_facade_exposes_adcp_timer_getter() -> None:
     async def run() -> None:
         transport = FakeTransport(lambda payload: b'timer=[{"light_src": 864}]\r\n')
-        projector = Projector("192.0.2.10", protocol=Protocol.ADCP, transport=transport)
+        projector = Projector("192.0.2.10", protocol="adcp", transport=transport)
 
         await projector.connect()
 
         assert await projector.get_timer() == 864
-        assert "timer" in projector.capabilities.supported
         assert transport.requests == [b"timer ?\r\n"]
 
     asyncio.run(run())
@@ -544,13 +662,12 @@ def test_projector_facade_exposes_adcp_picture_mode_getter_and_setter() -> None:
             raise AssertionError(payload)
 
         transport = FakeTransport(respond)
-        projector = Projector("192.0.2.10", protocol=Protocol.ADCP, transport=transport)
+        projector = Projector("192.0.2.10", protocol="adcp", transport=transport)
 
         await projector.connect()
 
         assert await projector.get_picture_mode() == "reference"
         await projector.set_picture_mode("cinema_film1")
-        assert "picture_mode" in projector.capabilities.supported
         assert transport.requests == [b"picture_mode ?\r\n", b'picture_mode "cinema_film1"\r\n']
 
     asyncio.run(run())
@@ -566,13 +683,12 @@ def test_projector_facade_exposes_adcp_color_space_getter_and_setter() -> None:
             raise AssertionError(payload)
 
         transport = FakeTransport(respond)
-        projector = Projector("192.0.2.10", protocol=Protocol.ADCP, transport=transport)
+        projector = Projector("192.0.2.10", protocol="adcp", transport=transport)
 
         await projector.connect()
 
         assert await projector.get_color_space() == "bt2020"
         await projector.set_color_space("bt709")
-        assert "color_space" in projector.capabilities.supported
         assert transport.requests == [b"color_space ?\r\n", b'color_space "bt709"\r\n']
 
     asyncio.run(run())
@@ -588,13 +704,12 @@ def test_projector_facade_exposes_adcp_lamp_control_getter_and_setter() -> None:
             raise AssertionError(payload)
 
         transport = FakeTransport(respond)
-        projector = Projector("192.0.2.10", protocol=Protocol.ADCP, transport=transport)
+        projector = Projector("192.0.2.10", protocol="adcp", transport=transport)
 
         await projector.connect()
 
         assert await projector.get_lamp_control() == "low"
         await projector.set_lamp_control("high")
-        assert "lamp_control" in projector.capabilities.supported
         assert transport.requests == [b"lamp_control ?\r\n", b'lamp_control "high"\r\n']
 
     asyncio.run(run())
@@ -610,14 +725,12 @@ def test_projector_facade_exposes_adcp_warning_and_error_getters() -> None:
             raise AssertionError(payload)
 
         transport = FakeTransport(respond)
-        projector = Projector("192.0.2.10", protocol=Protocol.ADCP, transport=transport)
+        projector = Projector("192.0.2.10", protocol="adcp", transport=transport)
 
         await projector.connect()
 
         assert await projector.get_warning() == ["warn_temp"]
         assert await projector.get_error() == []
-        assert "warning" in projector.capabilities.supported
-        assert "error" in projector.capabilities.supported
         assert transport.requests == [b"warning ?\r\n", b"error ?\r\n"]
 
     asyncio.run(run())
@@ -645,7 +758,7 @@ def test_projector_facade_exposes_adcp_hdr_aspect_and_dynamic_range_getters() ->
             raise AssertionError(payload)
 
         transport = FakeTransport(respond)
-        projector = Projector("192.0.2.10", protocol=Protocol.ADCP, transport=transport)
+        projector = Projector("192.0.2.10", protocol="adcp", transport=transport)
 
         await projector.connect()
 
@@ -657,10 +770,6 @@ def test_projector_facade_exposes_adcp_hdr_aspect_and_dynamic_range_getters() ->
         await projector.set_hdmi1_dynamic_range("full")
         assert await projector.get_hdmi2_dynamic_range() == "full"
         await projector.set_hdmi2_dynamic_range("auto")
-        assert "hdr" in projector.capabilities.supported
-        assert "aspect_ratio" in projector.capabilities.supported
-        assert "hdmi1_dynamic_range" in projector.capabilities.supported
-        assert "hdmi2_dynamic_range" in projector.capabilities.supported
 
     asyncio.run(run())
 
@@ -679,7 +788,7 @@ def test_projector_facade_exposes_adcp_identity_system_getters() -> None:
             raise AssertionError(payload)
 
         transport = FakeTransport(respond)
-        projector = Projector("192.0.2.10", protocol=Protocol.ADCP, transport=transport)
+        projector = Projector("192.0.2.10", protocol="adcp", transport=transport)
 
         await projector.connect()
 
@@ -687,10 +796,6 @@ def test_projector_facade_exposes_adcp_identity_system_getters() -> None:
         assert await projector.get_serial_number() == "5102851"
         assert await projector.get_version() == "1.000"
         assert await projector.get_mac_address() == "00:11:22:33:44:55"
-        assert "model_name" in projector.capabilities.supported
-        assert "serial_number" in projector.capabilities.supported
-        assert "version" in projector.capabilities.supported
-        assert "mac_address" in projector.capabilities.supported
 
     asyncio.run(run())
 
@@ -706,11 +811,48 @@ def test_projector_facade_uses_configured_sdcp_protocol() -> None:
             raise AssertionError(payload.hex(" "))
 
         transport = FakeTransport(respond)
-        projector = Projector("192.0.2.10", protocol=Protocol.SDCP, transport=transport)
+        projector = Projector("192.0.2.10", protocol="sdcp", transport=transport)
 
         await projector.connect()
 
-        assert await projector.get_input() is Input.HDMI2
+        assert await projector.get_input() == "hdmi2"
+        assert transport.requests == [get_input]
+
+    asyncio.run(run())
+
+
+def test_projector_facade_passes_sdcp_community() -> None:
+    async def run() -> None:
+        get_input = bytes.fromhex("02 0A 41 42 43 44 01 00 01 00")
+        input_hdmi2_response = bytes.fromhex("02 0A 41 42 43 44 01 00 01 02 00 03")
+
+        def respond(payload: bytes) -> bytes:
+            if payload == get_input:
+                return input_hdmi2_response
+            raise AssertionError(payload.hex(" "))
+
+        transport = FakeTransport(respond)
+        projector = Projector("192.0.2.10", protocol="sdcp", transport=transport, community="ABCD")
+
+        await projector.connect()
+
+        assert await projector.get_input() == "hdmi2"
+        assert transport.requests == [get_input]
+
+    asyncio.run(run())
+
+
+def test_projector_facade_defaults_missing_sdcp_community() -> None:
+    async def run() -> None:
+        get_input = bytes.fromhex("02 0A 53 4F 4E 59 01 00 01 00")
+        input_hdmi2_response = bytes.fromhex("02 0A 53 4F 4E 59 01 00 01 02 00 03")
+
+        transport = FakeTransport(lambda payload: input_hdmi2_response)
+        projector = Projector("192.0.2.10", protocol="sdcp", transport=transport, community=None)
+
+        await projector.connect()
+
+        assert await projector.get_input() == "hdmi2"
         assert transport.requests == [get_input]
 
     asyncio.run(run())
@@ -727,12 +869,97 @@ def test_projector_facade_exposes_sdcp_specific_getters() -> None:
             raise AssertionError(payload.hex(" "))
 
         transport = FakeTransport(respond)
-        projector = Projector("192.0.2.10", protocol=Protocol.SDCP, transport=transport)
+        projector = Projector("192.0.2.10", protocol="sdcp", transport=transport)
 
         await projector.connect()
 
         assert await projector.get_lamp_timer() == 862
         assert transport.requests == [get_lamp_timer]
+
+    asyncio.run(run())
+
+
+def test_sdcp_identity_uses_equipment_info_items() -> None:
+    async def run() -> None:
+        get_model = bytes.fromhex("02 0A 53 4F 4E 59 01 80 01 00")
+        get_serial = bytes.fromhex("02 0A 53 4F 4E 59 01 80 02 00")
+        get_location = bytes.fromhex("02 0A 53 4F 4E 59 01 80 03 00")
+        get_mac = bytes.fromhex("02 0A 53 4F 4E 59 01 90 00 00")
+        model_response = b"\x02\x0aSONY\x01\x80\x01\x0cVPL-VW285ES\x00"
+        serial_response = b"\x02\x0aSONY\x01\x80\x02\x04" + (12345).to_bytes(4, byteorder="big")
+        location_response = b"\x02\x0aSONY\x01\x80\x03\x18Theater\x00" + b"\x00" * 16
+        mac_response = b"\x02\x0aSONY\x01\x90\x00\x06\x00\x11\x22\x33\x44\x55"
+
+        def respond(payload: bytes) -> bytes:
+            if payload == get_model:
+                return model_response
+            if payload == get_serial:
+                return serial_response
+            if payload == get_location:
+                return location_response
+            if payload == get_mac:
+                return mac_response
+            raise AssertionError(payload.hex(" "))
+
+        transport = FakeTransport(respond)
+        client = SdcpClient("192.0.2.10", transport=transport)
+
+        assert await client.get_model_name() == "VPL-VW285ES"
+        assert await client.get_serial_number() == "00012345"
+        assert await client.get_installation_location() == "Theater"
+        assert await client.get_mac_address() == "00:11:22:33:44:55"
+        assert await client.get_identity() == ProjectorIdentity(
+            model="VPL-VW285ES",
+            serial="00012345",
+            location="Theater",
+            mac_address="00:11:22:33:44:55",
+        )
+        assert transport.requests == [
+            get_model,
+            get_serial,
+            get_location,
+            get_mac,
+            get_model,
+            get_serial,
+            get_location,
+            get_mac,
+        ]
+
+    asyncio.run(run())
+
+
+def test_projector_facade_exposes_sdcp_identity() -> None:
+    async def run() -> None:
+        get_model = bytes.fromhex("02 0A 53 4F 4E 59 01 80 01 00")
+        get_serial = bytes.fromhex("02 0A 53 4F 4E 59 01 80 02 00")
+        get_location = bytes.fromhex("02 0A 53 4F 4E 59 01 80 03 00")
+        get_mac = bytes.fromhex("02 0A 53 4F 4E 59 01 90 00 00")
+
+        def respond(payload: bytes) -> bytes:
+            if payload == get_model:
+                return b"\x02\x0aSONY\x01\x80\x01\x0cVPL-XW5000ES"
+            if payload == get_serial:
+                return b"\x02\x0aSONY\x01\x80\x02\x04" + (5102851).to_bytes(4, byteorder="big")
+            if payload == get_location:
+                return b"\x02\x0aSONY\x01\x80\x03\x18Ceiling\x00" + b"\x00" * 16
+            if payload == get_mac:
+                return b"\x02\x0aSONY\x01\x90\x00\x06\xaa\xbb\xcc\xdd\xee\xff"
+            raise AssertionError(payload.hex(" "))
+
+        projector = Projector("192.0.2.10", protocol="sdcp", transport=FakeTransport(respond))
+
+        await projector.connect()
+
+        assert await projector.get_identity() == ProjectorIdentity(
+            model="VPL-XW5000ES",
+            serial="05102851",
+            location="Ceiling",
+            mac_address="AA:BB:CC:DD:EE:FF",
+        )
+        assert await projector.get_model_name() == "VPL-XW5000ES"
+        assert await projector.get_serial_number() == "05102851"
+        assert await projector.get_installation_location() == "Ceiling"
+        assert await projector.get_mac_address() == "AA:BB:CC:DD:EE:FF"
 
     asyncio.run(run())
 
@@ -748,7 +975,7 @@ def test_projector_facade_exposes_sdcp_specific_setters() -> None:
             raise AssertionError(payload.hex(" "))
 
         transport = FakeTransport(respond)
-        projector = Projector("192.0.2.10", protocol=Protocol.SDCP, transport=transport)
+        projector = Projector("192.0.2.10", protocol="sdcp", transport=transport)
 
         await projector.connect()
 
@@ -758,12 +985,32 @@ def test_projector_facade_exposes_sdcp_specific_setters() -> None:
     asyncio.run(run())
 
 
-def test_projector_auto_protocol_rejects_injected_transport() -> None:
+@pytest.mark.parametrize("fixture_name", ["adcp_basic.json", "sdcp_basic.json"])
+def test_captured_session_fixture_replays_through_client(fixture_name: str) -> None:
     async def run() -> None:
-        projector = Projector("192.0.2.10", protocol=Protocol.AUTO, transport=FakeTransport(lambda payload: b""))
+        fixture = json.loads((_FIXTURE_DIR / fixture_name).read_text(encoding="utf-8"))
+        commands = fixture["commands"]
+        responses = {bytes.fromhex(item["request_hex"]): bytes.fromhex(item["response_hex"]) for item in commands}
 
-        with pytest.raises(ProjectorProtocolError):
-            await projector.connect()
+        def respond(payload: bytes) -> bytes:
+            try:
+                return responses[payload]
+            except KeyError as exc:
+                raise AssertionError(payload.hex()) from exc
+
+        if fixture["protocol"] == "adcp":
+            client = AdcpClient("192.0.2.10", transport=FakeTransport(respond))
+        else:
+            client = SdcpClient("192.0.2.10", transport=FakeTransport(respond))
+
+        for item in commands:
+            method = getattr(client, item["method"])
+            args = item.get("args", [])
+            if item.get("expected_exception") == "UnsupportedCommandError":
+                with pytest.raises(UnsupportedCommandError):
+                    await method(*args)
+            else:
+                assert await method(*args) == item["expected"]
 
     asyncio.run(run())
 
@@ -807,3 +1054,7 @@ def test_parse_text_sdap_packet_fallback_uses_discovery_fields_only() -> None:
         serial_number=12345,
         power_status=2,
     )
+
+
+def test_discover_defaults_to_sixty_seconds() -> None:
+    assert inspect.signature(discover).parameters["timeout"].default == 60.0

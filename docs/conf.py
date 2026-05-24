@@ -4,8 +4,9 @@
 # list see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
-# -- Path setup --------------------------------------------------------------
+from __future__ import annotations
 
+# -- Path setup --------------------------------------------------------------
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
@@ -18,9 +19,9 @@ sys.path.insert(0, os.path.abspath("../src/"))
 
 # -- Project information -----------------------------------------------------
 
-project = "ai-python docs"
-copyright = "2022, Daniel Ciborowski"
-author = "Daniel Ciborowski"
+project = "Sony Projector Protocol"
+copyright = "2026, Sony Projector Protocol Contributors"
+author = "Sony Projector Protocol Contributors"
 
 # The full version, including alpha/beta/rc tags
 release = "0.1.0"

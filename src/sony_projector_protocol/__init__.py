@@ -2,29 +2,28 @@
 
 from __future__ import annotations
 
-from sony_projector_protocol.discovery import DiscoveredProjector, discover, parse_sdap_packet
-from sony_projector_protocol.exceptions import (
-    ProjectorAuthenticationError,
-    ProjectorConnectionError,
-    ProjectorError,
-    ProjectorProtocolError,
-    ProjectorTimeoutError,
-    UnsupportedCommandError,
-)
-from sony_projector_protocol.models import Input, PowerState, Protocol
+from sony_projector_protocol.discovery import (DiscoveredProjector, discover,
+                                               parse_sdap_packet)
+from sony_projector_protocol.exceptions import (ProjectorAuthenticationError,
+                                                ProjectorConnectionError,
+                                                ProjectorError,
+                                                ProjectorProtocolError,
+                                                ProjectorTimeoutError,
+                                                UnsupportedCommandError)
 from sony_projector_protocol.projector import Projector
+from sony_projector_protocol.sdcp import DEFAULT_SDCP_COMMUNITY
+from sony_projector_protocol.types import ProjectorIdentity
 
 __all__ = [
+    "DEFAULT_SDCP_COMMUNITY",
     "DiscoveredProjector",
-    "Input",
-    "PowerState",
     "Projector",
+    "ProjectorIdentity",
     "ProjectorAuthenticationError",
     "ProjectorConnectionError",
     "ProjectorError",
     "ProjectorProtocolError",
     "ProjectorTimeoutError",
-    "Protocol",
     "UnsupportedCommandError",
     "discover",
     "parse_sdap_packet",

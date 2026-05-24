@@ -1,7 +1,7 @@
-src
-===
+sony_projector_protocol
+=======================
 
 .. toctree::
    :maxdepth: 4
 
-   python_package
+   sony_projector_protocol

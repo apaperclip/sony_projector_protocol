@@ -22,7 +22,7 @@ The package must support:
 
 - Discover projectors on the local network.
 - Configure a projector by IP address when discovery is unavailable or disabled.
-- Read projector state, including power, input, model identity, and supported capability hints.
+- Read projector state, including power, input, and model identity.
 - Control common projector features reliably.
 - Handle offline, standby, authentication, unsupported command, and protocol mismatch cases cleanly.
 
@@ -31,14 +31,12 @@ The package must support:
 ### MVP
 
 - SDAP discovery listener.
-<<<<<<< HEAD
 - Discovery should listen for 60s
-=======
->>>>>>> 93e583af79eae1c27c0eb37444f1d23e02bd76d2
 - Manual host connection.
 - ADCP TCP client.
 - SDCP TCP client.
-- Protocol selection by explicit configuration, SDAP advertisement hints where available, or fallback probing.
+- Protocol selection by explicit upstream configuration.
+- SDCP default community `SONY`, with upstream override support.
 - Power on/off.
 - Power status.
 - Input status and HDMI input selection.
@@ -52,12 +50,16 @@ The package must support:
 - Calibration preset / picture mode controls.
 - Picture mute / blanking controls.
 - Lamp or light source hours where supported.
-- Contrast, brightness, sharpness, and light output controls for ADCP-capable models.
-- Capability reporting that records unsupported commands without failing the whole device.
+- Clear unsupported-command errors that upstream integrations can map to disabled or unavailable entities.
 - Home Assistant integration reference examples.
 
 ### Later
 
+- ADCP image adjustment controls:
+  - Contrast.
+  - Brightness.
+  - Sharpness.
+  - Light output.
 - Optional serial ADCP transport.
 - Optional command tables per projector family.
 - Persistent capability cache.
@@ -76,7 +78,7 @@ The package must support:
 
 - Local first: never require internet at runtime.
 - Home Assistant friendly: async APIs, predictable exceptions, fast setup, no blocking network calls in public async methods.
-- Conservative control: expose advanced commands only through typed methods and capability checks.
+- Conservative control: expose advanced commands through explicit methods and raise `UnsupportedCommandError` when the selected protocol or projector does not support them.
 - Protocol neutral API: callers should ask for `set_power(True)`, not build ADCP or SDCP packets.
 - Testable transports: all protocol clients must work with fake readers/writers or socket abstractions.
 
@@ -85,9 +87,9 @@ The package must support:
 ```python
 from sony_projector_protocol import Projector, discover
 
-devices = await discover(timeout=5.0)
+devices = await discover()
 
-projector = Projector(host="192.168.1.50", protocol="auto")
+projector = Projector(host="192.168.1.50", protocol="sdcp")
 await projector.connect()
 
 state = await projector.get_power()
@@ -112,7 +114,6 @@ The current template package name (`python_package`) should be replaced before f
 
 ## Source References
 
-<<<<<<< HEAD
 - Sony common protocol manual: SDAP, ADCP, network behavior, and command flow.
   https://pro.sony/s3/2018/07/19110324/Sony_Protocol-Manual_1st-Edition-Revised-1.pdf
 - Sony supported command list: model command support and default ports.
@@ -124,17 +125,4 @@ The current template package name (`python_package`) should be replaced before f
 - ADCP Unfolded Circle implementation reference.
   https://github.com/kennymc-c/ucr-integration-sonyADCP
 - ADCP Home Assistant implementation reference.
-=======
-- Sony common protocol manual: SDAP, ADCP, network behavior, and command flow.  
-  https://pro.sony/s3/2018/07/19110324/Sony_Protocol-Manual_1st-Edition-Revised-1.pdf
-- Sony supported command list: model command support and default ports.  
-  https://pro.sony/s3/2018/07/19110602/Sony_Protocol-Manual_Supported-Command-List_1st-Edition-Revised-1.pdf
-- SDCP package reference implementation.  
-  https://github.com/kennymc-c/pySDCP-extended
-- ADCP Home Assistant implementation reference.  
-  https://github.com/tokyotexture/homeassistant-custom-components
-- ADCP Unfolded Circle implementation reference.  
-  https://github.com/kennymc-c/ucr-integration-sonyADCP
-- ADCP Home Assistant implementation reference.  
->>>>>>> 93e583af79eae1c27c0eb37444f1d23e02bd76d2
   https://github.com/Bcukier/sony_projector_adcp

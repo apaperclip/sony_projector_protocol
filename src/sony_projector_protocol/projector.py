@@ -3,15 +3,14 @@
 from __future__ import annotations
 
 from sony_projector_protocol.adcp import AdcpClient
-from sony_projector_protocol.exceptions import (
-    ProjectorConnectionError,
-    ProjectorError,
-    ProjectorProtocolError,
-    UnsupportedCommandError,
-)
-from sony_projector_protocol.models import Capabilities, Input, PowerState, ProjectorIdentity, Protocol
-from sony_projector_protocol.sdcp import SdcpClient
+from sony_projector_protocol.exceptions import (ProjectorConnectionError,
+                                                UnsupportedCommandError)
+from sony_projector_protocol.sdcp import DEFAULT_SDCP_COMMUNITY, SdcpClient
 from sony_projector_protocol.transport import Transport
+from sony_projector_protocol.types import ProjectorIdentity
+
+PROTOCOL_ADCP = "adcp"
+PROTOCOL_SDCP = "sdcp"
 
 
 class Projector:
@@ -21,33 +20,30 @@ class Projector:
         self,
         host: str,
         *,
-        protocol: Protocol | str = Protocol.AUTO,
+        protocol: str,
         timeout: float = 5.0,
         transport: Transport | None = None,
-        community: str = "SONY",
+        community: str | None = None,
         adcp_password: str | None = None,
     ) -> None:
         self.host = host
-        self.protocol = Protocol(protocol)
+        self.protocol = self._normalize_protocol(protocol)
         self.timeout = timeout
-        self.capabilities = Capabilities()
         self._transport = transport
-        self.community = community
+        self.community = DEFAULT_SDCP_COMMUNITY if community is None else community
         self.adcp_password = adcp_password
         self._client: AdcpClient | SdcpClient | None = None
 
     async def connect(self) -> None:
         """Connect to the configured projector."""
-        if self.protocol is Protocol.ADCP:
+        if self.protocol == PROTOCOL_ADCP:
             self._client = AdcpClient(
                 self.host, timeout=self.timeout, transport=self._transport, password=self.adcp_password
             )
-        elif self.protocol is Protocol.SDCP:
+        else:
             self._client = SdcpClient(
                 self.host, timeout=self.timeout, transport=self._transport, community=self.community
             )
-        else:
-            self._client = await self._probe_client()
 
         await self._client.connect()
 
@@ -56,74 +52,42 @@ class Projector:
         if self._client is not None:
             await self._client.close()
 
-    async def get_power(self) -> PowerState | str:
+    async def get_power(self) -> str:
         client = self._connected_client()
-        self.capabilities.mark_supported("power")
         return await client.get_power()
 
     async def set_power(self, power: bool) -> None:
         client = self._connected_client()
         await client.set_power(power)
-        self.capabilities.mark_supported("power")
 
-    async def get_input(self) -> Input | str:
+    async def get_input(self) -> str:
         client = self._connected_client()
-        self.capabilities.mark_supported("input")
         return await client.get_input()
 
-    async def set_input(self, value: Input | str) -> None:
+    async def set_input(self, value: str) -> None:
         client = self._connected_client()
         await client.set_input(value)
-        self.capabilities.mark_supported("input")
 
     async def get_signal(self) -> str:
-        client = self._connected_client()
-        if not isinstance(client, AdcpClient):
-            raise UnsupportedCommandError("This command is only supported by ADCP")
-        self.capabilities.mark_supported("signal")
-        return await client.get_signal()
+        return await self._adcp_client().get_signal()
 
     async def get_temperature(self) -> int | float | str:
-        client = self._connected_client()
-        if not isinstance(client, AdcpClient):
-            raise UnsupportedCommandError("This command is only supported by ADCP")
-        self.capabilities.mark_supported("temperature")
-        return await client.get_temperature()
+        return await self._adcp_client().get_temperature()
 
     async def get_timer(self) -> int | float | str:
-        client = self._connected_client()
-        if not isinstance(client, AdcpClient):
-            raise UnsupportedCommandError("This command is only supported by ADCP")
-        self.capabilities.mark_supported("timer")
-        return await client.get_timer()
+        return await self._adcp_client().get_timer()
 
     async def get_picture_mode(self) -> str:
-        client = self._connected_client()
-        if not isinstance(client, AdcpClient):
-            raise UnsupportedCommandError("This command is only supported by ADCP")
-        self.capabilities.mark_supported("picture_mode")
-        return await client.get_picture_mode()
+        return await self._adcp_client().get_picture_mode()
 
     async def set_picture_mode(self, value: str) -> None:
-        client = self._connected_client()
-        if not isinstance(client, AdcpClient):
-            raise UnsupportedCommandError("This command is only supported by ADCP")
-        await client.set_picture_mode(value)
-        self.capabilities.mark_supported("picture_mode")
+        await self._adcp_client().set_picture_mode(value)
 
     async def get_warning(self) -> list[str] | str:
-        client = self._connected_client()
-        if not isinstance(client, AdcpClient):
-            raise UnsupportedCommandError("This command is only supported by ADCP")
-        self.capabilities.mark_supported("warning")
-        return await client.get_warning()
+        return await self._adcp_client().get_warning()
 
     async def get_error(self) -> list[str] | str:
-        client = self._connected_client()
-        if not isinstance(client, AdcpClient):
-            raise UnsupportedCommandError("This command is only supported by ADCP")
-        self.capabilities.mark_supported("error")
-        return await client.get_error()
+        return await self._adcp_client().get_error()
 
     async def get_identity(self) -> ProjectorIdentity:
         client = self._connected_client()
@@ -131,31 +95,21 @@ class Projector:
 
     async def get_model_name(self) -> str:
         client = self._connected_client()
-        if not isinstance(client, AdcpClient):
-            raise UnsupportedCommandError("This command is only supported by ADCP")
-        self.capabilities.mark_supported("model_name")
         return await client.get_model_name()
 
     async def get_serial_number(self) -> str:
         client = self._connected_client()
-        if not isinstance(client, AdcpClient):
-            raise UnsupportedCommandError("This command is only supported by ADCP")
-        self.capabilities.mark_supported("serial_number")
         return await client.get_serial_number()
 
     async def get_version(self) -> str:
-        client = self._connected_client()
-        if not isinstance(client, AdcpClient):
-            raise UnsupportedCommandError("This command is only supported by ADCP")
-        self.capabilities.mark_supported("version")
-        return await client.get_version()
+        return await self._adcp_client().get_version()
 
     async def get_mac_address(self) -> str:
         client = self._connected_client()
-        if not isinstance(client, AdcpClient):
-            raise UnsupportedCommandError("This command is only supported by ADCP")
-        self.capabilities.mark_supported("mac_address")
         return await client.get_mac_address()
+
+    async def get_installation_location(self) -> str:
+        return await self._sdcp_client().get_installation_location()
 
     async def get_calibration_preset(self) -> str:
         return await self._sdcp_client().get_calibration_preset()
@@ -168,13 +122,11 @@ class Projector:
 
     async def get_lamp_control(self) -> str:
         client = self._connected_client()
-        self.capabilities.mark_supported("lamp_control")
         return await client.get_lamp_control()
 
     async def set_lamp_control(self, value: str) -> None:
         client = self._connected_client()
         await client.set_lamp_control(value)
-        self.capabilities.mark_supported("lamp_control")
 
     async def get_contrast_enhancer(self) -> str:
         return await self._sdcp_client().get_contrast_enhancer()
@@ -190,13 +142,11 @@ class Projector:
 
     async def get_aspect_ratio(self) -> str:
         client = self._connected_client()
-        self.capabilities.mark_supported("aspect_ratio")
         return await client.get_aspect_ratio()
 
     async def set_aspect_ratio(self, value: str) -> None:
         client = self._connected_client()
         await client.set_aspect_ratio(value)
-        self.capabilities.mark_supported("aspect_ratio")
 
     async def get_gamma_correction(self) -> int | str:
         return await self._sdcp_client().get_gamma_correction()
@@ -209,15 +159,10 @@ class Projector:
 
     async def get_color_space(self) -> int | str:
         client = self._connected_client()
-        self.capabilities.mark_supported("color_space")
         return await client.get_color_space()
 
     async def set_color_space(self, value: str) -> None:
-        client = self._connected_client()
-        if not isinstance(client, AdcpClient):
-            raise UnsupportedCommandError("This command is only supported by ADCP")
-        await client.set_color_space(value)
-        self.capabilities.mark_supported("color_space")
+        await self._adcp_client().set_color_space(value)
 
     async def get_motionflow(self) -> str:
         return await self._sdcp_client().get_motionflow()
@@ -248,33 +193,27 @@ class Projector:
 
     async def get_hdmi1_dynamic_range(self) -> str:
         client = self._connected_client()
-        self.capabilities.mark_supported("hdmi1_dynamic_range")
         return await client.get_hdmi1_dynamic_range()
 
     async def set_hdmi1_dynamic_range(self, value: str) -> None:
         client = self._connected_client()
         await client.set_hdmi1_dynamic_range(value)
-        self.capabilities.mark_supported("hdmi1_dynamic_range")
 
     async def get_hdmi2_dynamic_range(self) -> str:
         client = self._connected_client()
-        self.capabilities.mark_supported("hdmi2_dynamic_range")
         return await client.get_hdmi2_dynamic_range()
 
     async def set_hdmi2_dynamic_range(self, value: str) -> None:
         client = self._connected_client()
         await client.set_hdmi2_dynamic_range(value)
-        self.capabilities.mark_supported("hdmi2_dynamic_range")
 
     async def get_hdr(self) -> str:
         client = self._connected_client()
-        self.capabilities.mark_supported("hdr")
         return await client.get_hdr()
 
     async def set_hdr(self, value: str) -> None:
         client = self._connected_client()
         await client.set_hdr(value)
-        self.capabilities.mark_supported("hdr")
 
     async def get_input_lag_reduction(self) -> str:
         return await self._sdcp_client().get_input_lag_reduction()
@@ -294,23 +233,17 @@ class Projector:
     async def get_lamp_timer(self) -> int | str:
         return await self._sdcp_client().get_lamp_timer()
 
-    async def _probe_client(self) -> AdcpClient | SdcpClient:
-        if self._transport is not None:
-            raise ProjectorProtocolError("protocol='auto' cannot infer a protocol from an injected transport")
+    def _normalize_protocol(self, protocol: str) -> str:
+        normalized = protocol.lower()
+        if normalized not in {PROTOCOL_ADCP, PROTOCOL_SDCP}:
+            raise ValueError(f"Unsupported protocol: {protocol}. Expected 'adcp' or 'sdcp'.")
+        return normalized
 
-        errors: list[ProjectorError] = []
-        for client in (
-            AdcpClient(self.host, timeout=self.timeout, password=self.adcp_password),
-            SdcpClient(self.host, timeout=self.timeout, community=self.community),
-        ):
-            try:
-                await client.connect()
-                await client.close()
-                return client
-            except ProjectorError as exc:
-                errors.append(exc)
-
-        raise ProjectorConnectionError(f"Could not connect to {self.host} with ADCP or SDCP") from errors[-1]
+    def _adcp_client(self) -> AdcpClient:
+        client = self._connected_client()
+        if not isinstance(client, AdcpClient):
+            raise UnsupportedCommandError("This command is only supported by ADCP")
+        return client
 
     def _sdcp_client(self) -> SdcpClient:
         client = self._connected_client()

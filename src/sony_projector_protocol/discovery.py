@@ -101,7 +101,7 @@ class _SdapProtocol(asyncio.DatagramProtocol):
         self.devices[ip] = parse_sdap_packet(data, ip)
 
 
-async def discover(timeout: float = 5.0, *, port: int = SDAP_PORT) -> list[DiscoveredProjector]:
+async def discover(timeout: float = 60.0, *, port: int = SDAP_PORT) -> list[DiscoveredProjector]:
     """Listen for SDAP advertisements for a short period."""
     loop = asyncio.get_running_loop()
     protocol = _SdapProtocol()

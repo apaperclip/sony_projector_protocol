@@ -1,0 +1,61 @@
+{
+  "protocol": "adcp",
+  "model": "VPL-EXAMPLE",
+  "commands": [
+    {
+      "method": "get_power",
+      "request_hex": "706f7765725f737461747573203f0d0a",
+      "response_hex": "706f7765725f7374617475733d6f6e0d0a",
+      "expected": "on"
+    },
+    {
+      "method": "get_input",
+      "request_hex": "696e707574203f0d0a",
+      "response_hex": "696e7075743d68646d69310d0a",
+      "expected": "hdmi1"
+    },
+    {
+      "method": "get_model_name",
+      "request_hex": "6d6f64656c6e616d65203f0d0a",
+      "response_hex": "6d6f64656c6e616d653d56504c2d4558414d504c450d0a",
+      "expected": "VPL-EXAMPLE"
+    },
+    {
+      "method": "get_serial_number",
+      "request_hex": "73657269616c6e756d203f0d0a",
+      "response_hex": "73657269616c6e756d3d30303030303030300d0a",
+      "expected": "00000000"
+    },
+    {
+      "method": "get_mac_address",
+      "request_hex": "6d61635f61646472657373203f0d0a",
+      "response_hex": "6d61635f616464726573733d30303a30303a30303a30303a30303a30300d0a",
+      "expected": "00:00:00:00:00:00"
+    },
+    {
+      "method": "get_signal",
+      "request_hex": "7369676e616c203f0d0a",
+      "response_hex": "7369676e616c3d3338343078323136302f3630702048445231300d0a",
+      "expected": "3840x2160/60p HDR10"
+    },
+    {
+      "method": "get_warning",
+      "request_hex": "7761726e696e67203f0d0a",
+      "response_hex": "7761726e696e673d5b5d0d0a",
+      "expected": []
+    },
+    {
+      "method": "get_error",
+      "request_hex": "6572726f72203f0d0a",
+      "response_hex": "6572726f723d5b5d0d0a",
+      "expected": []
+    },
+    {
+      "method": "_command",
+      "args": ["not_a_command ?"],
+      "request_hex": "6e6f745f615f636f6d6d616e64203f0d0a",
+      "response_hex": "756e737570706f727465640d0a",
+      "expected_exception": "UnsupportedCommandError"
+    }
+  ]
+}
