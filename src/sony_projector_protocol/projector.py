@@ -104,6 +104,13 @@ class Projector:
         self.capabilities.mark_supported("picture_mode")
         return await client.get_picture_mode()
 
+    async def set_picture_mode(self, value: str) -> None:
+        client = self._connected_client()
+        if not isinstance(client, AdcpClient):
+            raise UnsupportedCommandError("This command is only supported by ADCP")
+        await client.set_picture_mode(value)
+        self.capabilities.mark_supported("picture_mode")
+
     async def get_warning(self) -> list[str] | str:
         client = self._connected_client()
         if not isinstance(client, AdcpClient):
@@ -165,7 +172,9 @@ class Projector:
         return await client.get_lamp_control()
 
     async def set_lamp_control(self, value: str) -> None:
-        await self._sdcp_client().set_lamp_control(value)
+        client = self._connected_client()
+        await client.set_lamp_control(value)
+        self.capabilities.mark_supported("lamp_control")
 
     async def get_contrast_enhancer(self) -> str:
         return await self._sdcp_client().get_contrast_enhancer()
@@ -185,7 +194,9 @@ class Projector:
         return await client.get_aspect_ratio()
 
     async def set_aspect_ratio(self, value: str) -> None:
-        await self._sdcp_client().set_aspect_ratio(value)
+        client = self._connected_client()
+        await client.set_aspect_ratio(value)
+        self.capabilities.mark_supported("aspect_ratio")
 
     async def get_gamma_correction(self) -> int | str:
         return await self._sdcp_client().get_gamma_correction()
@@ -200,6 +211,13 @@ class Projector:
         client = self._connected_client()
         self.capabilities.mark_supported("color_space")
         return await client.get_color_space()
+
+    async def set_color_space(self, value: str) -> None:
+        client = self._connected_client()
+        if not isinstance(client, AdcpClient):
+            raise UnsupportedCommandError("This command is only supported by ADCP")
+        await client.set_color_space(value)
+        self.capabilities.mark_supported("color_space")
 
     async def get_motionflow(self) -> str:
         return await self._sdcp_client().get_motionflow()
@@ -234,7 +252,9 @@ class Projector:
         return await client.get_hdmi1_dynamic_range()
 
     async def set_hdmi1_dynamic_range(self, value: str) -> None:
-        await self._sdcp_client().set_hdmi1_dynamic_range(value)
+        client = self._connected_client()
+        await client.set_hdmi1_dynamic_range(value)
+        self.capabilities.mark_supported("hdmi1_dynamic_range")
 
     async def get_hdmi2_dynamic_range(self) -> str:
         client = self._connected_client()
@@ -242,7 +262,9 @@ class Projector:
         return await client.get_hdmi2_dynamic_range()
 
     async def set_hdmi2_dynamic_range(self, value: str) -> None:
-        await self._sdcp_client().set_hdmi2_dynamic_range(value)
+        client = self._connected_client()
+        await client.set_hdmi2_dynamic_range(value)
+        self.capabilities.mark_supported("hdmi2_dynamic_range")
 
     async def get_hdr(self) -> str:
         client = self._connected_client()
@@ -250,7 +272,9 @@ class Projector:
         return await client.get_hdr()
 
     async def set_hdr(self, value: str) -> None:
-        await self._sdcp_client().set_hdr(value)
+        client = self._connected_client()
+        await client.set_hdr(value)
+        self.capabilities.mark_supported("hdr")
 
     async def get_input_lag_reduction(self) -> str:
         return await self._sdcp_client().get_input_lag_reduction()

@@ -55,13 +55,16 @@ def test_adcp_picture_mode_command() -> None:
         def respond(payload: bytes) -> bytes:
             if payload == b"picture_mode ?\r\n":
                 return b"picture_mode=cinema_film1\r\n"
+            if payload == b'picture_mode "reference"\r\n':
+                return b"ok\r\n"
             raise AssertionError(payload)
 
         transport = FakeTransport(respond)
         client = AdcpClient("192.0.2.10", transport=transport)
 
         assert await client.get_picture_mode() == "cinema_film1"
-        assert transport.requests == [b"picture_mode ?\r\n"]
+        await client.set_picture_mode("reference")
+        assert transport.requests == [b"picture_mode ?\r\n", b'picture_mode "reference"\r\n']
 
     asyncio.run(run())
 
@@ -71,13 +74,16 @@ def test_adcp_color_space_command() -> None:
         def respond(payload: bytes) -> bytes:
             if payload == b"color_space ?\r\n":
                 return b"color_space=bt709\r\n"
+            if payload == b'color_space "bt2020"\r\n':
+                return b"ok\r\n"
             raise AssertionError(payload)
 
         transport = FakeTransport(respond)
         client = AdcpClient("192.0.2.10", transport=transport)
 
         assert await client.get_color_space() == "bt709"
-        assert transport.requests == [b"color_space ?\r\n"]
+        await client.set_color_space("bt2020")
+        assert transport.requests == [b"color_space ?\r\n", b'color_space "bt2020"\r\n']
 
     asyncio.run(run())
 
@@ -87,13 +93,16 @@ def test_adcp_lamp_control_command() -> None:
         def respond(payload: bytes) -> bytes:
             if payload == b"lamp_control ?\r\n":
                 return b"lamp_control=high\r\n"
+            if payload == b'lamp_control "low"\r\n':
+                return b"ok\r\n"
             raise AssertionError(payload)
 
         transport = FakeTransport(respond)
         client = AdcpClient("192.0.2.10", transport=transport)
 
         assert await client.get_lamp_control() == "high"
-        assert transport.requests == [b"lamp_control ?\r\n"]
+        await client.set_lamp_control("low")
+        assert transport.requests == [b"lamp_control ?\r\n", b'lamp_control "low"\r\n']
 
     asyncio.run(run())
 
@@ -145,26 +154,42 @@ def test_adcp_hdr_aspect_and_dynamic_range_commands() -> None:
         def respond(payload: bytes) -> bytes:
             if payload == b"hdr ?\r\n":
                 return b"hdr=hdr10\r\n"
+            if payload == b'hdr "auto"\r\n':
+                return b"ok\r\n"
             if payload == b"aspect ?\r\n":
                 return b"aspect=normal\r\n"
+            if payload == b'aspect "zoom"\r\n':
+                return b"ok\r\n"
             if payload == b"dynamic_range --hdmi1 ?\r\n":
                 return b"dynamic_range=full\r\n"
+            if payload == b'dynamic_range --hdmi1 "auto"\r\n':
+                return b"ok\r\n"
             if payload == b"dynamic_range --hdmi2 ?\r\n":
                 return b"dynamic_range=limited\r\n"
+            if payload == b'dynamic_range --hdmi2 "full"\r\n':
+                return b"ok\r\n"
             raise AssertionError(payload)
 
         transport = FakeTransport(respond)
         client = AdcpClient("192.0.2.10", transport=transport)
 
         assert await client.get_hdr() == "hdr10"
+        await client.set_hdr("auto")
         assert await client.get_aspect_ratio() == "normal"
+        await client.set_aspect_ratio("zoom")
         assert await client.get_hdmi1_dynamic_range() == "full"
+        await client.set_hdmi1_dynamic_range("auto")
         assert await client.get_hdmi2_dynamic_range() == "limited"
+        await client.set_hdmi2_dynamic_range("full")
         assert transport.requests == [
             b"hdr ?\r\n",
+            b'hdr "auto"\r\n',
             b"aspect ?\r\n",
+            b'aspect "zoom"\r\n',
             b"dynamic_range --hdmi1 ?\r\n",
+            b'dynamic_range --hdmi1 "auto"\r\n',
             b"dynamic_range --hdmi2 ?\r\n",
+            b'dynamic_range --hdmi2 "full"\r\n',
         ]
 
     asyncio.run(run())
@@ -509,44 +534,68 @@ def test_projector_facade_exposes_adcp_timer_getter() -> None:
     asyncio.run(run())
 
 
-def test_projector_facade_exposes_adcp_picture_mode_getter() -> None:
+def test_projector_facade_exposes_adcp_picture_mode_getter_and_setter() -> None:
     async def run() -> None:
-        transport = FakeTransport(lambda payload: b"picture_mode=reference\r\n")
+        def respond(payload: bytes) -> bytes:
+            if payload == b"picture_mode ?\r\n":
+                return b"picture_mode=reference\r\n"
+            if payload == b'picture_mode "cinema_film1"\r\n':
+                return b"ok\r\n"
+            raise AssertionError(payload)
+
+        transport = FakeTransport(respond)
         projector = Projector("192.0.2.10", protocol=Protocol.ADCP, transport=transport)
 
         await projector.connect()
 
         assert await projector.get_picture_mode() == "reference"
+        await projector.set_picture_mode("cinema_film1")
         assert "picture_mode" in projector.capabilities.supported
-        assert transport.requests == [b"picture_mode ?\r\n"]
+        assert transport.requests == [b"picture_mode ?\r\n", b'picture_mode "cinema_film1"\r\n']
 
     asyncio.run(run())
 
 
-def test_projector_facade_exposes_adcp_color_space_getter() -> None:
+def test_projector_facade_exposes_adcp_color_space_getter_and_setter() -> None:
     async def run() -> None:
-        transport = FakeTransport(lambda payload: b"color_space=bt2020\r\n")
+        def respond(payload: bytes) -> bytes:
+            if payload == b"color_space ?\r\n":
+                return b"color_space=bt2020\r\n"
+            if payload == b'color_space "bt709"\r\n':
+                return b"ok\r\n"
+            raise AssertionError(payload)
+
+        transport = FakeTransport(respond)
         projector = Projector("192.0.2.10", protocol=Protocol.ADCP, transport=transport)
 
         await projector.connect()
 
         assert await projector.get_color_space() == "bt2020"
+        await projector.set_color_space("bt709")
         assert "color_space" in projector.capabilities.supported
-        assert transport.requests == [b"color_space ?\r\n"]
+        assert transport.requests == [b"color_space ?\r\n", b'color_space "bt709"\r\n']
 
     asyncio.run(run())
 
 
-def test_projector_facade_exposes_adcp_lamp_control_getter() -> None:
+def test_projector_facade_exposes_adcp_lamp_control_getter_and_setter() -> None:
     async def run() -> None:
-        transport = FakeTransport(lambda payload: b"lamp_control=low\r\n")
+        def respond(payload: bytes) -> bytes:
+            if payload == b"lamp_control ?\r\n":
+                return b"lamp_control=low\r\n"
+            if payload == b'lamp_control "high"\r\n':
+                return b"ok\r\n"
+            raise AssertionError(payload)
+
+        transport = FakeTransport(respond)
         projector = Projector("192.0.2.10", protocol=Protocol.ADCP, transport=transport)
 
         await projector.connect()
 
         assert await projector.get_lamp_control() == "low"
+        await projector.set_lamp_control("high")
         assert "lamp_control" in projector.capabilities.supported
-        assert transport.requests == [b"lamp_control ?\r\n"]
+        assert transport.requests == [b"lamp_control ?\r\n", b'lamp_control "high"\r\n']
 
     asyncio.run(run())
 
@@ -579,12 +628,20 @@ def test_projector_facade_exposes_adcp_hdr_aspect_and_dynamic_range_getters() ->
         def respond(payload: bytes) -> bytes:
             if payload == b"hdr ?\r\n":
                 return b"hdr=auto\r\n"
+            if payload == b'hdr "hdr10"\r\n':
+                return b"ok\r\n"
             if payload == b"aspect ?\r\n":
                 return b"aspect=zoom\r\n"
+            if payload == b'aspect "normal"\r\n':
+                return b"ok\r\n"
             if payload == b"dynamic_range --hdmi1 ?\r\n":
                 return b"dynamic_range=auto\r\n"
+            if payload == b'dynamic_range --hdmi1 "full"\r\n':
+                return b"ok\r\n"
             if payload == b"dynamic_range --hdmi2 ?\r\n":
                 return b"dynamic_range=full\r\n"
+            if payload == b'dynamic_range --hdmi2 "auto"\r\n':
+                return b"ok\r\n"
             raise AssertionError(payload)
 
         transport = FakeTransport(respond)
@@ -593,9 +650,13 @@ def test_projector_facade_exposes_adcp_hdr_aspect_and_dynamic_range_getters() ->
         await projector.connect()
 
         assert await projector.get_hdr() == "auto"
+        await projector.set_hdr("hdr10")
         assert await projector.get_aspect_ratio() == "zoom"
+        await projector.set_aspect_ratio("normal")
         assert await projector.get_hdmi1_dynamic_range() == "auto"
+        await projector.set_hdmi1_dynamic_range("full")
         assert await projector.get_hdmi2_dynamic_range() == "full"
+        await projector.set_hdmi2_dynamic_range("auto")
         assert "hdr" in projector.capabilities.supported
         assert "aspect_ratio" in projector.capabilities.supported
         assert "hdmi1_dynamic_range" in projector.capabilities.supported

@@ -83,11 +83,20 @@ class AdcpClient:
     async def get_picture_mode(self) -> str:
         return await self._command("picture_mode ?")
 
+    async def set_picture_mode(self, value: str) -> None:
+        await self._command(f"picture_mode {self._quoted(value)}")
+
     async def get_color_space(self) -> str:
         return await self._command("color_space ?")
 
+    async def set_color_space(self, value: str) -> None:
+        await self._command(f"color_space {self._quoted(value)}")
+
     async def get_lamp_control(self) -> str:
         return await self._command("lamp_control ?")
+
+    async def set_lamp_control(self, value: str) -> None:
+        await self._command(f"lamp_control {self._quoted(value)}")
 
     async def get_warning(self) -> list[str] | str:
         return await self._json_list_command("warning ?")
@@ -98,20 +107,34 @@ class AdcpClient:
     async def get_hdr(self) -> str:
         return await self._command("hdr ?")
 
+    async def set_hdr(self, value: str) -> None:
+        await self._command(f"hdr {self._quoted(value)}")
+
     async def get_aspect_ratio(self) -> str:
         return await self._command("aspect ?")
+
+    async def set_aspect_ratio(self, value: str) -> None:
+        await self._command(f"aspect {self._quoted(value)}")
 
     async def get_hdmi1_dynamic_range(self) -> str:
         return await self._command("dynamic_range --hdmi1 ?")
 
+    async def set_hdmi1_dynamic_range(self, value: str) -> None:
+        await self.set_dynamic_range("hdmi1", value)
+
     async def get_hdmi2_dynamic_range(self) -> str:
         return await self._command("dynamic_range --hdmi2 ?")
 
+    async def set_hdmi2_dynamic_range(self, value: str) -> None:
+        await self.set_dynamic_range("hdmi2", value)
+
     async def get_dynamic_range(self, input_name: str) -> str:
-        normalized = input_name.lower().replace("_", "")
-        if normalized not in {"hdmi1", "hdmi2"}:
-            raise UnsupportedCommandError(f"Unsupported dynamic range input: {input_name}")
+        normalized = self._dynamic_range_input(input_name)
         return await self._command(f"dynamic_range --{normalized} ?")
+
+    async def set_dynamic_range(self, input_name: str, value: str) -> None:
+        normalized = self._dynamic_range_input(input_name)
+        await self._command(f"dynamic_range --{normalized} {self._quoted(value)}")
 
     async def get_model_name(self) -> str:
         return await self._command("modelname ?")
@@ -144,6 +167,15 @@ class AdcpClient:
             return await self._command(command)
         except UnsupportedCommandError:
             return None
+
+    def _dynamic_range_input(self, input_name: str) -> str:
+        normalized = input_name.lower().replace("_", "")
+        if normalized not in {"hdmi1", "hdmi2"}:
+            raise UnsupportedCommandError(f"Unsupported dynamic range input: {input_name}")
+        return normalized
+
+    def _quoted(self, value: str) -> str:
+        return value if value.startswith('"') and value.endswith('"') else f'"{value}"'
 
     async def _json_value_command(self, command: str, key: str) -> int | float | str:
         response = await self._command(command)

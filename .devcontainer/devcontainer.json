@@ -7,7 +7,6 @@
 		"context": ".."
 	},
 	"runArgs": [
-<<<<<<< HEAD
 		"--cap-add=SYS_ADMIN",
 		"--network=host"
 	],
