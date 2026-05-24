@@ -53,6 +53,15 @@ _INPUT_TO_DEVICE = {
 
 _INPUT_FROM_DEVICE = {value: key for key, value in _INPUT_TO_DEVICE.items()}
 
+
+def _invert(mapping: dict[int, str]) -> dict[str, int]:
+    return {value: key for key, value in mapping.items()}
+
+
+def _normalize_value(value: str) -> str:
+    return value.strip().lower().replace("-", "_").replace(" ", "_")
+
+
 _POWER_FROM_DEVICE = {
     _POWER_STANDBY: "standby",
     _POWER_START_UP: "start_up",
@@ -118,6 +127,20 @@ _ERROR_STATUS_FROM_DEVICE = {
     0x0014: "power_error",
     0x0028: "temp_warning",
 }
+
+_CALIBRATION_PRESET_TO_DEVICE = _invert(_CALIBRATION_PRESET_FROM_DEVICE)
+_LAMP_CONTROL_TO_DEVICE = _invert(_LAMP_CONTROL_FROM_DEVICE)
+_CONTRAST_ENHANCER_TO_DEVICE = _invert(_CONTRAST_ENHANCER_FROM_DEVICE)
+_ADVANCED_IRIS_TO_DEVICE = _invert(_ADVANCED_IRIS_FROM_DEVICE)
+_ASPECT_RATIO_TO_DEVICE = _invert(_ASPECT_RATIO_FROM_DEVICE)
+_ON_OFF_TO_DEVICE = _invert(_ON_OFF_FROM_DEVICE)
+_MOTIONFLOW_TO_DEVICE = _invert(_MOTIONFLOW_FROM_DEVICE)
+_DISPLAY_SELECT_TO_DEVICE = _invert(_DISPLAY_SELECT_FROM_DEVICE)
+_THREE_D_FORMAT_TO_DEVICE = _invert(_THREE_D_FORMAT_FROM_DEVICE)
+_PICTURE_POSITION_TO_DEVICE = _invert(_PICTURE_POSITION_FROM_DEVICE)
+_DYNAMIC_RANGE_TO_DEVICE = _invert(_DYNAMIC_RANGE_FROM_DEVICE)
+_HDR_TO_DEVICE = _invert(_HDR_FROM_DEVICE)
+_MENU_POSITION_TO_DEVICE = _invert(_MENU_POSITION_FROM_DEVICE)
 
 _RESPONSE_ERRORS = {
     0x0101: "Item Error: Invalid Item",
@@ -200,6 +223,51 @@ class SdcpClient:
             raise UnsupportedCommandError(f"Unsupported SDCP input: {value}")
         await self._command(_ACTION_SET, _COMMAND_INPUT, _INPUT_TO_DEVICE[input_value])
 
+    async def set_calibration_preset(self, value: str) -> None:
+        await self._set_mapped(_COMMAND_CALIBRATION_PRESET, value, _CALIBRATION_PRESET_TO_DEVICE, "calibration preset")
+
+    async def set_lamp_control(self, value: str) -> None:
+        await self._set_mapped(_COMMAND_LAMP_CONTROL, value, _LAMP_CONTROL_TO_DEVICE, "lamp control")
+
+    async def set_contrast_enhancer(self, value: str) -> None:
+        await self._set_mapped(_COMMAND_CONTRAST_ENHANCER, value, _CONTRAST_ENHANCER_TO_DEVICE, "contrast enhancer")
+
+    async def set_advanced_iris(self, value: str) -> None:
+        await self._set_mapped(_COMMAND_ADVANCED_IRIS, value, _ADVANCED_IRIS_TO_DEVICE, "advanced iris")
+
+    async def set_aspect_ratio(self, value: str) -> None:
+        await self._set_mapped(_COMMAND_ASPECT_RATIO, value, _ASPECT_RATIO_TO_DEVICE, "aspect ratio")
+
+    async def set_picture_muting(self, value: bool | str) -> None:
+        await self._set_on_off(_COMMAND_PICTURE_MUTING, value, "picture muting")
+
+    async def set_motionflow(self, value: str) -> None:
+        await self._set_mapped(_COMMAND_MOTIONFLOW, value, _MOTIONFLOW_TO_DEVICE, "motionflow")
+
+    async def set_2d_3d_display_select(self, value: str) -> None:
+        await self._set_mapped(_COMMAND_2D_3D_DISPLAY_SELECT, value, _DISPLAY_SELECT_TO_DEVICE, "2d/3d display select")
+
+    async def set_3d_format(self, value: str) -> None:
+        await self._set_mapped(_COMMAND_3D_FORMAT, value, _THREE_D_FORMAT_TO_DEVICE, "3d format")
+
+    async def set_picture_position(self, value: str) -> None:
+        await self._set_mapped(_COMMAND_PICTURE_POSITION, value, _PICTURE_POSITION_TO_DEVICE, "picture position")
+
+    async def set_hdmi1_dynamic_range(self, value: str) -> None:
+        await self._set_mapped(_COMMAND_HDMI1_DYNAMIC_RANGE, value, _DYNAMIC_RANGE_TO_DEVICE, "HDMI 1 dynamic range")
+
+    async def set_hdmi2_dynamic_range(self, value: str) -> None:
+        await self._set_mapped(_COMMAND_HDMI2_DYNAMIC_RANGE, value, _DYNAMIC_RANGE_TO_DEVICE, "HDMI 2 dynamic range")
+
+    async def set_hdr(self, value: str) -> None:
+        await self._set_mapped(_COMMAND_HDR, value, _HDR_TO_DEVICE, "HDR")
+
+    async def set_input_lag_reduction(self, value: bool | str) -> None:
+        await self._set_on_off(_COMMAND_INPUT_LAG_REDUCTION, value, "input lag reduction")
+
+    async def set_menu_position(self, value: str) -> None:
+        await self._set_mapped(_COMMAND_MENU_POSITION, value, _MENU_POSITION_TO_DEVICE, "menu position")
+
     async def get_calibration_preset(self) -> str:
         return self._decode(await self._get(_COMMAND_CALIBRATION_PRESET), _CALIBRATION_PRESET_FROM_DEVICE)
 
@@ -265,6 +333,22 @@ class SdcpClient:
 
     async def get_identity(self) -> ProjectorIdentity:
         return ProjectorIdentity()
+
+    async def _set_mapped(self, command: int, value: str, mapping: dict[str, int], label: str) -> None:
+        key = _normalize_value(value)
+        try:
+            encoded = mapping[key]
+        except KeyError as exc:
+            supported = ", ".join(sorted(mapping))
+            raise UnsupportedCommandError(f"Unsupported SDCP {label}: {value}. Expected one of: {supported}") from exc
+        await self._command(_ACTION_SET, command, encoded)
+
+    async def _set_on_off(self, command: int, value: bool | str, label: str) -> None:
+        if isinstance(value, bool):
+            encoded = _ON_OFF_TO_DEVICE["on" if value else "off"]
+            await self._command(_ACTION_SET, command, encoded)
+            return
+        await self._set_mapped(command, value, _ON_OFF_TO_DEVICE, label)
 
     async def _get(self, command: int) -> int | None:
         return await self._command(_ACTION_GET, command)

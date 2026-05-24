@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from sony_projector_protocol.exceptions import ProjectorProtocolError, UnsupportedCommandError
+import asyncio
+import hashlib
+import json
+
+from sony_projector_protocol.exceptions import ProjectorConnectionError, ProjectorProtocolError, UnsupportedCommandError
 from sony_projector_protocol.models import Input, PowerState, ProjectorIdentity
 from sony_projector_protocol.transport import StreamTransport, Transport
 
@@ -35,13 +39,23 @@ _INPUT_FROM_DEVICE = {value: key for key, value in _INPUT_TO_DEVICE.items()}
 class AdcpClient:
     """Small async ADCP command client."""
 
-    def __init__(self, host: str, *, timeout: float = 5.0, transport: Transport | None = None) -> None:
+    def __init__(
+        self,
+        host: str,
+        *,
+        timeout: float = 5.0,
+        transport: Transport | None = None,
+        password: str | None = None,
+    ) -> None:
         self.host = host
         self.timeout = timeout
-        self.transport = transport or StreamTransport(host, ADCP_PORT)
+        self.password = password
+        self.transport = transport or StreamTransport(host, ADCP_PORT, terminator=b"\r\n")
 
     async def connect(self) -> None:
         await self.transport.connect()
+        if self.password is not None:
+            await self._authenticate()
 
     async def close(self) -> None:
         await self.transport.close()
@@ -57,6 +71,60 @@ class AdcpClient:
         response = await self._command("input ?")
         return _INPUT_FROM_DEVICE.get(response.lower(), response.lower())
 
+    async def get_signal(self) -> str:
+        return await self._command("signal ?")
+
+    async def get_temperature(self) -> int | float | str:
+        return await self._json_value_command("temperature ?", "intake_air")
+
+    async def get_timer(self) -> int | float | str:
+        return await self._json_value_command("timer ?", "light_src")
+
+    async def get_picture_mode(self) -> str:
+        return await self._command("picture_mode ?")
+
+    async def get_color_space(self) -> str:
+        return await self._command("color_space ?")
+
+    async def get_lamp_control(self) -> str:
+        return await self._command("lamp_control ?")
+
+    async def get_warning(self) -> list[str] | str:
+        return await self._json_list_command("warning ?")
+
+    async def get_error(self) -> list[str] | str:
+        return await self._json_list_command("error ?")
+
+    async def get_hdr(self) -> str:
+        return await self._command("hdr ?")
+
+    async def get_aspect_ratio(self) -> str:
+        return await self._command("aspect ?")
+
+    async def get_hdmi1_dynamic_range(self) -> str:
+        return await self._command("dynamic_range --hdmi1 ?")
+
+    async def get_hdmi2_dynamic_range(self) -> str:
+        return await self._command("dynamic_range --hdmi2 ?")
+
+    async def get_dynamic_range(self, input_name: str) -> str:
+        normalized = input_name.lower().replace("_", "")
+        if normalized not in {"hdmi1", "hdmi2"}:
+            raise UnsupportedCommandError(f"Unsupported dynamic range input: {input_name}")
+        return await self._command(f"dynamic_range --{normalized} ?")
+
+    async def get_model_name(self) -> str:
+        return await self._command("modelname ?")
+
+    async def get_serial_number(self) -> str:
+        return await self._command("serialnum ?")
+
+    async def get_version(self) -> str:
+        return await self._command("version ?")
+
+    async def get_mac_address(self) -> str:
+        return await self._command("mac_address ?")
+
     async def set_input(self, value: Input | str) -> None:
         try:
             input_value: Input | str = Input(value)
@@ -67,8 +135,8 @@ class AdcpClient:
         await self._command(f"input {input_value}")
 
     async def get_identity(self) -> ProjectorIdentity:
-        model = await self._optional_command("model ?")
-        serial = await self._optional_command("serial ?")
+        model = await self._optional_command("modelname ?")
+        serial = await self._optional_command("serialnum ?")
         return ProjectorIdentity(model=model, serial=serial)
 
     async def _optional_command(self, command: str) -> str | None:
@@ -77,18 +145,69 @@ class AdcpClient:
         except UnsupportedCommandError:
             return None
 
+    async def _json_value_command(self, command: str, key: str) -> int | float | str:
+        response = await self._command(command)
+        try:
+            values = json.loads(response)
+        except json.JSONDecodeError:
+            return response
+
+        if isinstance(values, list):
+            item = next((item for item in values if isinstance(item, dict) and key in item), None)
+            if item is not None:
+                return item[key]
+        if isinstance(values, dict) and key in values:
+            return values[key]
+        return response
+
+    async def _json_list_command(self, command: str) -> list[str] | str:
+        response = await self._command(command)
+        try:
+            values = json.loads(response)
+        except json.JSONDecodeError:
+            return response
+
+        if isinstance(values, list):
+            return [str(value) for value in values]
+        return response
+
+    async def _authenticate(self) -> None:
+        if not isinstance(self.transport, StreamTransport):
+            return
+        if self.transport.reader is None or self.transport.writer is None:
+            raise ProjectorConnectionError("ADCP transport is not connected")
+
+        try:
+            challenge_raw = await asyncio.wait_for(self.transport.reader.readuntil(b"\r\n"), self.timeout)
+            challenge = challenge_raw.decode("ascii", errors="replace").strip().strip('"')
+            if challenge.upper() == "NOKEY":
+                return
+
+            digest = hashlib.sha256((challenge + self.password).encode("ascii")).hexdigest()
+            self.transport.writer.write(f"{digest}\r\n".encode("ascii"))
+            await self.transport.writer.drain()
+            response_raw = await asyncio.wait_for(self.transport.reader.readuntil(b"\r\n"), self.timeout)
+        except TimeoutError as exc:
+            raise ProjectorConnectionError("Timed out during ADCP authentication") from exc
+        except (OSError, asyncio.IncompleteReadError) as exc:
+            raise ProjectorConnectionError("Projector connection closed during ADCP authentication") from exc
+
+        response = response_raw.decode("ascii", errors="replace").strip().strip('"').lower()
+        if response.startswith("err") or response.startswith("ng"):
+            raise ProjectorProtocolError(f"ADCP authentication failed: {response}")
+
     async def _command(self, command: str) -> str:
-        payload = f"{command}\r".encode("ascii")
+        payload = f"{command}\r\n".encode("ascii")
         raw = await self.transport.request(payload, timeout=self.timeout)
-        text = raw.decode("ascii", errors="replace").strip()
+        text = raw.decode("ascii", errors="replace").strip().strip('"')
         lowered = text.lower()
 
         if lowered in {"ok", "success"}:
             return lowered
         if lowered in {"unsupported", "not_available", "na"}:
             raise UnsupportedCommandError(command)
-        if lowered.startswith("err") or lowered.startswith("ng"):
-            raise ProjectorProtocolError(f"ADCP command failed: {text}")
         if "=" in text:
             return text.split("=", 1)[1].strip()
+        if lowered.startswith("err") or lowered.startswith("ng"):
+            raise ProjectorProtocolError(f"ADCP command failed: {text}")
         return text
