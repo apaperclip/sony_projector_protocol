@@ -6,6 +6,9 @@
 		"dockerfile": "Dockerfile",
 		"context": ".."
 	},
+	"runArgs": [
+		"--cap-add=SYS_ADMIN"
+	],
 	"customizations": {
 		"vscode": {
 			"extensions": [
