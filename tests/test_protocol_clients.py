@@ -120,15 +120,42 @@ def test_projector_auto_protocol_rejects_injected_transport() -> None:
     asyncio.run(run())
 
 
-def test_parse_sdap_packet() -> None:
-    packet = b"MODEL: VPL-XW5000ES\nSERIAL: 12345\nPROTOCOL: ADCP\n"
+def test_parse_binary_sdap_packet() -> None:
+    packet = b"".join(
+        [
+            b"DA",
+            bytes([0x01, 0x0A]),
+            b"SONY",
+            b"VPL-XW5000ES",
+            (12345).to_bytes(4, byteorder="big"),
+            (2).to_bytes(2, byteorder="big"),
+            b"Theater\x00" + b"\x00" * 16,
+        ]
+    )
 
     projector = parse_sdap_packet(packet, "192.0.2.10")
 
     assert projector == DiscoveredProjector(
-        host="192.0.2.10",
-        model="VPL-XW5000ES",
-        serial="12345",
-        protocol=Protocol.ADCP,
-        raw={"model": "VPL-XW5000ES", "serial": "12345", "protocol": "ADCP"},
+        ip="192.0.2.10",
+        id="DA",
+        version=1,
+        category=10,
+        community="SONY",
+        product_name="VPL-XW5000ES",
+        serial_number=12345,
+        power_status=2,
+        location="Theater",
+    )
+
+
+def test_parse_text_sdap_packet_fallback_uses_discovery_fields_only() -> None:
+    packet = b"PRODUCT_NAME: VPL-XW5000ES\nSERIAL_NUMBER: 12345\nPOWER_STATUS: 2\n"
+
+    projector = parse_sdap_packet(packet, "192.0.2.10")
+
+    assert projector == DiscoveredProjector(
+        ip="192.0.2.10",
+        product_name="VPL-XW5000ES",
+        serial_number=12345,
+        power_status=2,
     )

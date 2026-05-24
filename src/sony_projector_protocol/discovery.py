@@ -6,8 +6,6 @@ import asyncio
 import contextlib
 from dataclasses import dataclass
 
-from sony_projector_protocol.models import Protocol
-
 SDAP_PORT = 53862
 
 
@@ -15,15 +13,49 @@ SDAP_PORT = 53862
 class DiscoveredProjector:
     """Projector details learned from SDAP."""
 
-    host: str
-    model: str | None = None
-    serial: str | None = None
-    protocol: Protocol | None = None
-    raw: dict[str, str] | None = None
+    ip: str
+    id: str | None = None
+    version: int | None = None
+    category: int | None = None
+    community: str | None = None
+    product_name: str | None = None
+    serial_number: int | None = None
+    power_status: int | None = None
+    location: str | None = None
 
 
-def parse_sdap_packet(payload: bytes, host: str) -> DiscoveredProjector:
-    """Parse a text-like SDAP advertisement into normalized fields."""
+def _decode_sdap_text_field(payload: bytes) -> str:
+    return payload.split(b"\x00", 1)[0].decode("utf-8", errors="ignore").strip()
+
+
+def _parse_optional_int(value: str | None) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(value, 0)
+    except ValueError:
+        return None
+
+
+def _parse_binary_sdap_packet(payload: bytes, ip: str) -> DiscoveredProjector | None:
+    if len(payload) < 26 or payload[:2] != b"DA":
+        return None
+
+    return DiscoveredProjector(
+        ip=ip,
+        id=payload[:2].decode("ascii", errors="ignore"),
+        version=payload[2],
+        category=payload[3],
+        community=_decode_sdap_text_field(payload[4:8]),
+        product_name=_decode_sdap_text_field(payload[8:20]) or None,
+        serial_number=int.from_bytes(payload[20:24], byteorder="big"),
+        power_status=int.from_bytes(payload[24:26], byteorder="big"),
+        location=_decode_sdap_text_field(payload[26:50]) or None,
+    )
+
+
+def _parse_text_sdap_packet(payload: bytes, ip: str) -> DiscoveredProjector:
+    """Parse a text-like advertisement into top-level discovery fields."""
     text = payload.decode("utf-8", errors="ignore")
     fields: dict[str, str] = {}
 
@@ -39,22 +71,25 @@ def parse_sdap_packet(payload: bytes, host: str) -> DiscoveredProjector:
             continue
         fields[key.strip().lower()] = value.strip()
 
-    protocol_hint = fields.get("protocol") or fields.get("service") or fields.get("type")
-    protocol = None
-    if protocol_hint:
-        lowered = protocol_hint.lower()
-        if "adcp" in lowered:
-            protocol = Protocol.ADCP
-        elif "sdcp" in lowered or "pj" in lowered:
-            protocol = Protocol.SDCP
-
     return DiscoveredProjector(
-        host=host,
-        model=fields.get("model") or fields.get("modelname") or fields.get("name"),
-        serial=fields.get("serial") or fields.get("serialnumber"),
-        protocol=protocol,
-        raw=fields,
+        ip=ip,
+        id=fields.get("id"),
+        version=_parse_optional_int(fields.get("version")),
+        category=_parse_optional_int(fields.get("category")),
+        community=fields.get("community"),
+        product_name=fields.get("product_name") or fields.get("productname"),
+        serial_number=_parse_optional_int(fields.get("serial_number") or fields.get("serialnumber")),
+        power_status=_parse_optional_int(fields.get("power_status") or fields.get("powerstatus")),
+        location=fields.get("location"),
     )
+
+
+def parse_sdap_packet(payload: bytes, ip: str) -> DiscoveredProjector:
+    """Parse an SDAP advertisement into normalized fields."""
+    projector = _parse_binary_sdap_packet(payload, ip)
+    if projector is not None:
+        return projector
+    return _parse_text_sdap_packet(payload, ip)
 
 
 class _SdapProtocol(asyncio.DatagramProtocol):
@@ -62,8 +97,8 @@ class _SdapProtocol(asyncio.DatagramProtocol):
         self.devices: dict[str, DiscoveredProjector] = {}
 
     def datagram_received(self, data: bytes, addr: tuple[str, int]) -> None:
-        host = addr[0]
-        self.devices[host] = parse_sdap_packet(data, host)
+        ip = addr[0]
+        self.devices[ip] = parse_sdap_packet(data, ip)
 
 
 async def discover(timeout: float = 5.0, *, port: int = SDAP_PORT) -> list[DiscoveredProjector]:
