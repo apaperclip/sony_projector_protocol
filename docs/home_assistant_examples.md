@@ -48,11 +48,19 @@ await projector.set_input("hdmi1")
 ## Exceptions
 
 ```python
-from sony_projector_protocol import ProjectorConnectionError, ProjectorTimeoutError, UnsupportedCommandError
+from sony_projector_protocol import (
+    PackageUnsupportedCommandError,
+    ProjectorConnectionError,
+    ProjectorTimeoutError,
+    ProjectorUnsupportedCommandError,
+)
 
 try:
     signal = await projector.get_signal()
-except UnsupportedCommandError:
+except ProjectorUnsupportedCommandError as err:
+    _LOGGER.debug("Projector rejected %s: %s", err.command, err.response_text or err.response_hex)
+    signal = None
+except PackageUnsupportedCommandError:
     signal = None
 except ProjectorTimeoutError:
     signal = None
@@ -60,4 +68,4 @@ except ProjectorConnectionError:
     await projector.close()
 ```
 
-Integrations can create optional disabled-by-default entities for model-dependent commands and mark them unavailable if an enabled command raises `UnsupportedCommandError`.
+Integrations can create optional disabled-by-default entities for model-dependent commands and mark them unavailable if an enabled command raises `ProjectorUnsupportedCommandError`. A `PackageUnsupportedCommandError` means the selected package API or protocol cannot make that request, so the integration should not create or enable that entity for the current configuration.

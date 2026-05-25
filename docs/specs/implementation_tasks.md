@@ -46,7 +46,7 @@ Acceptance criteria:
 
 - Remove `projector.capabilities`.
 - Remove the facade capability helper.
-- Keep `UnsupportedCommandError` behavior for protocol-specific or device-unsupported calls.
+- Keep `UnsupportedCommandError` behavior for protocol-specific or device-unsupported calls, with subclasses that distinguish package/protocol rejection from projector rejection and expose projector responses for debugging.
 - Update docs to recommend disabled-by-default upstream entities for optional commands.
 
 ### 4. Clarify Protocol-Neutral Versus Protocol-Specific API
@@ -61,7 +61,7 @@ Acceptance criteria:
 
 - Classify current public methods as protocol-neutral, ADCP-only, or SDCP-only.
 - Document the method support model in README or API docs.
-- Ensure protocol-specific methods fail with `UnsupportedCommandError`.
+- Ensure protocol-specific methods fail with `PackageUnsupportedCommandError`.
 - Consider naming or grouping helpers if the method list becomes confusing for Home Assistant integration authors.
 
 ### 5. Complete Identity Support Expectations
@@ -138,6 +138,7 @@ Acceptance criteria:
 - Mark commands as MVP, Version 0.2, or experimental. Done.
 - Confirm command names, item numbers, and value mappings against source references or captured sessions.
 - Add tests for any corrected mappings.
+- Do not maintain a model capability matrix; projector-level unsupported responses should raise `ProjectorUnsupportedCommandError` with response metadata.
 
 ### 10. Add Captured-Session Replay Tests
 

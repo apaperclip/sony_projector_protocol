@@ -73,7 +73,7 @@ from sony_projector_protocol import Projector
 projector = Projector(
     host="192.168.1.50",
     protocol="adcp",
-    adcp_password="Projector,
+    adcp_password="Projector"
 )
 
 await projector.connect()
@@ -105,18 +105,27 @@ SDCP identity reads model name, serial number, installation location, and MAC ad
 
 ## Unsupported Commands
 
-Projector features vary by model and protocol. Unsupported or protocol-specific calls raise `UnsupportedCommandError`.
+Projector features vary by model and protocol. Unsupported requests raise `UnsupportedCommandError`.
+Use the more specific subclasses when an integration needs to tell local request
+validation apart from a projector response:
+
+- `PackageUnsupportedCommandError` means this package or the selected protocol cannot issue the request, such as calling an SDCP-only method on an ADCP connection or passing a value this package does not encode.
+- `ProjectorUnsupportedCommandError` means the request was sent and the projector rejected it as unsupported or not available.
+
+Projector response errors include troubleshooting metadata when available:
+`protocol`, `command`, `response`, `response_text`, and `response_hex`.
 
 ```python
-from sony_projector_protocol import UnsupportedCommandError
+from sony_projector_protocol import ProjectorUnsupportedCommandError
 
 try:
     lamp_timer = await projector.get_lamp_timer()
-except UnsupportedCommandError:
+except ProjectorUnsupportedCommandError as err:
+    print(err.protocol, err.command, err.response_text or err.response_hex)
     lamp_timer = None
 ```
 
-This lets upstream applications create optional entities for advanced calls and mark them disabled or unavailable when the selected projector does not support them.
+This lets upstream applications create optional entities for advanced calls and mark them disabled or unavailable when the projector reports that it does not support them. Applications that do not need the distinction can catch `UnsupportedCommandError`.
 
 ## Command Areas
 

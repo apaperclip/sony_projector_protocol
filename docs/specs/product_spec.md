@@ -78,7 +78,7 @@ The package must support:
 
 - Local first: never require internet at runtime.
 - Home Assistant friendly: async APIs, predictable exceptions, fast setup, no blocking network calls in public async methods.
-- Conservative control: expose advanced commands through explicit methods and raise `UnsupportedCommandError` when the selected protocol or projector does not support them.
+- Conservative control: expose advanced commands through explicit methods and raise `PackageUnsupportedCommandError` when the package or selected protocol cannot issue a request, and `ProjectorUnsupportedCommandError` when the projector rejects a request as unsupported or unavailable. Both inherit from `UnsupportedCommandError`. Projector response errors should expose the protocol, command, and raw or decoded projector response for troubleshooting.
 - Protocol neutral API: callers should ask for `set_power(True)`, not build ADCP or SDCP packets.
 - Testable transports: all protocol clients must work with fake readers/writers or socket abstractions.
 

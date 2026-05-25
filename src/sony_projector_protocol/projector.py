@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from sony_projector_protocol.adcp import AdcpClient
-from sony_projector_protocol.exceptions import (ProjectorConnectionError,
-                                                UnsupportedCommandError)
+from sony_projector_protocol.exceptions import (PackageUnsupportedCommandError,
+                                                ProjectorConnectionError)
 from sony_projector_protocol.sdcp import DEFAULT_SDCP_COMMUNITY, SdcpClient
 from sony_projector_protocol.transport import Transport
 from sony_projector_protocol.types import ProjectorIdentity
@@ -242,13 +242,13 @@ class Projector:
     def _adcp_client(self) -> AdcpClient:
         client = self._connected_client()
         if not isinstance(client, AdcpClient):
-            raise UnsupportedCommandError("This command is only supported by ADCP")
+            raise PackageUnsupportedCommandError("This command is only supported by ADCP")
         return client
 
     def _sdcp_client(self) -> SdcpClient:
         client = self._connected_client()
         if not isinstance(client, SdcpClient):
-            raise UnsupportedCommandError("This command is only supported by SDCP")
+            raise PackageUnsupportedCommandError("This command is only supported by SDCP")
         return client
 
     def _connected_client(self) -> AdcpClient | SdcpClient:

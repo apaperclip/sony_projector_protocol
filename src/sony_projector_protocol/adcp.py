@@ -6,9 +6,10 @@ import asyncio
 import hashlib
 import json
 
-from sony_projector_protocol.exceptions import (ProjectorConnectionError,
-                                                ProjectorProtocolError,
-                                                UnsupportedCommandError)
+from sony_projector_protocol.exceptions import (
+    PackageUnsupportedCommandError, ProjectorAuthenticationError,
+    ProjectorConnectionError, ProjectorProtocolError,
+    ProjectorUnsupportedCommandError, UnsupportedCommandError)
 from sony_projector_protocol.transport import StreamTransport, Transport
 from sony_projector_protocol.types import ProjectorIdentity
 
@@ -157,7 +158,7 @@ class AdcpClient:
     def _dynamic_range_input(self, input_name: str) -> str:
         normalized = input_name.lower().replace("_", "")
         if normalized not in {"hdmi1", "hdmi2"}:
-            raise UnsupportedCommandError(f"Unsupported dynamic range input: {input_name}")
+            raise PackageUnsupportedCommandError(f"Unsupported dynamic range input: {input_name}")
         return normalized
 
     def _quoted(self, value: str) -> str:
@@ -212,7 +213,12 @@ class AdcpClient:
 
         response = response_raw.decode("ascii", errors="replace").strip().strip('"').lower()
         if response.startswith("err") or response.startswith("ng"):
-            raise ProjectorProtocolError(f"ADCP authentication failed: {response}")
+            raise ProjectorAuthenticationError(
+                f"ADCP authentication failed: {response}",
+                protocol="adcp",
+                command="authentication",
+                response=response,
+            )
 
     async def _command(self, command: str) -> str:
         payload = f"{command}\r\n".encode("ascii")
@@ -223,9 +229,19 @@ class AdcpClient:
         if lowered in {"ok", "success"}:
             return lowered
         if lowered in {"unsupported", "not_available", "na"}:
-            raise UnsupportedCommandError(command)
+            raise ProjectorUnsupportedCommandError(
+                f"ADCP command unsupported: {command}",
+                protocol="adcp",
+                command=command,
+                response=text,
+            )
         if "=" in text:
             return text.split("=", 1)[1].strip().strip('"')
         if lowered.startswith("err") or lowered.startswith("ng"):
-            raise ProjectorProtocolError(f"ADCP command failed: {text}")
+            raise ProjectorProtocolError(
+                f"ADCP command failed: {text}",
+                protocol="adcp",
+                command=command,
+                response=text,
+            )
         return text

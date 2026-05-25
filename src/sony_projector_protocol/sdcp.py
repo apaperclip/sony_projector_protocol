@@ -5,8 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from struct import pack_into, unpack
 
-from sony_projector_protocol.exceptions import (ProjectorProtocolError,
-                                                UnsupportedCommandError)
+from sony_projector_protocol.exceptions import (
+    PackageUnsupportedCommandError, ProjectorProtocolError,
+    ProjectorUnsupportedCommandError)
 from sony_projector_protocol.transport import StreamTransport, Transport
 from sony_projector_protocol.types import ProjectorIdentity
 
@@ -223,7 +224,7 @@ class SdcpClient:
     async def set_input(self, value: str) -> None:
         input_value = value.lower()
         if input_value not in _INPUT_TO_DEVICE:
-            raise UnsupportedCommandError(f"Unsupported SDCP input: {value}")
+            raise PackageUnsupportedCommandError(f"Unsupported SDCP input: {value}")
         await self._command(_ACTION_SET, _COMMAND_INPUT, _INPUT_TO_DEVICE[input_value])
 
     async def set_calibration_preset(self, value: str) -> None:
@@ -366,7 +367,9 @@ class SdcpClient:
             encoded = mapping[key]
         except KeyError as exc:
             supported = ", ".join(sorted(mapping))
-            raise UnsupportedCommandError(f"Unsupported SDCP {label}: {value}. Expected one of: {supported}") from exc
+            raise PackageUnsupportedCommandError(
+                f"Unsupported SDCP {label}: {value}. Expected one of: {supported}"
+            ) from exc
         await self._command(_ACTION_SET, command, encoded)
 
     async def _set_on_off(self, command: int, value: bool | str, label: str) -> None:
@@ -402,7 +405,12 @@ class SdcpClient:
         if response is None:
             return None
         if len(response) != 2:
-            raise ProjectorProtocolError(f"Unsupported SDCP response data length: {len(response)}")
+            raise ProjectorProtocolError(
+                f"Unsupported SDCP response data length: {len(response)}",
+                protocol="sdcp",
+                command=f"0x{command:04x}",
+                response=response,
+            )
         return unpack(">H", response)[0]
 
     async def _command_bytes(self, action: int, command: int, data: int | None = None) -> bytes | None:
@@ -430,27 +438,50 @@ class SdcpClient:
 
     def _process_response(self, payload: bytes, expected_command: int) -> bytes | None:
         if len(payload) < 10:
-            raise ProjectorProtocolError("SDCP response is shorter than the PJ Talk header")
+            raise ProjectorProtocolError(
+                "SDCP response is shorter than the PJ Talk header",
+                protocol="sdcp",
+                command=f"0x{expected_command:04x}",
+                response=payload,
+            )
 
         is_success = bool(payload[6])
         command = unpack(">H", payload[7:9])[0]
         data_len = payload[9]
         if len(payload) < 10 + data_len:
-            raise ProjectorProtocolError("SDCP response data is shorter than the declared data length")
+            raise ProjectorProtocolError(
+                "SDCP response data is shorter than the declared data length",
+                protocol="sdcp",
+                command=f"0x{expected_command:04x}",
+                response=payload,
+            )
         data = payload[10 : 10 + data_len] if data_len else None
 
         if command != expected_command:
             raise ProjectorProtocolError(
-                f"SDCP response command 0x{command:04x} did not match 0x{expected_command:04x}"
+                f"SDCP response command 0x{command:04x} did not match 0x{expected_command:04x}",
+                protocol="sdcp",
+                command=f"0x{expected_command:04x}",
+                response=payload,
             )
         if not is_success:
             error = unpack(">H", data)[0] if data is not None and len(data) == 2 else None
             if error == 0x0180:
-                raise UnsupportedCommandError(_RESPONSE_ERRORS[error])
+                raise ProjectorUnsupportedCommandError(
+                    _RESPONSE_ERRORS[error],
+                    protocol="sdcp",
+                    command=f"0x{expected_command:04x}",
+                    response=payload,
+                )
             message = (
                 _RESPONSE_ERRORS.get(error, f"Unknown SDCP error: 0x{error:04x}")
                 if error is not None
                 else "Unknown SDCP error"
             )
-            raise ProjectorProtocolError(message)
+            raise ProjectorProtocolError(
+                message,
+                protocol="sdcp",
+                command=f"0x{expected_command:04x}",
+                response=payload,
+            )
         return data

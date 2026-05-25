@@ -8,9 +8,11 @@ from pathlib import Path
 
 import pytest
 
-from sony_projector_protocol import (DEFAULT_SDCP_COMMUNITY, Projector,
-                                     ProjectorIdentity, discover,
-                                     parse_sdap_packet)
+from sony_projector_protocol import (DEFAULT_SDCP_COMMUNITY,
+                                     PackageUnsupportedCommandError, Projector,
+                                     ProjectorIdentity,
+                                     ProjectorUnsupportedCommandError,
+                                     discover, parse_sdap_packet)
 from sony_projector_protocol.adcp import AdcpClient
 from sony_projector_protocol.discovery import DiscoveredProjector
 from sony_projector_protocol.exceptions import UnsupportedCommandError
@@ -229,7 +231,7 @@ def test_adcp_dynamic_range_rejects_unknown_input() -> None:
     async def run() -> None:
         client = AdcpClient("192.0.2.10", transport=FakeTransport(lambda payload: b""))
 
-        with pytest.raises(UnsupportedCommandError):
+        with pytest.raises(PackageUnsupportedCommandError):
             await client.get_dynamic_range("displayport")
 
     asyncio.run(run())
@@ -554,7 +556,7 @@ def test_sdcp_setter_rejects_unknown_value() -> None:
     async def run() -> None:
         client = SdcpClient("192.0.2.10", transport=FakeTransport(lambda payload: b""))
 
-        with pytest.raises(UnsupportedCommandError):
+        with pytest.raises(PackageUnsupportedCommandError):
             await client.set_hdr("definitely_not_hdr")
 
     asyncio.run(run())
@@ -602,7 +604,7 @@ def test_projector_facade_rejects_wrong_protocol_command() -> None:
 
         await projector.connect()
 
-        with pytest.raises(UnsupportedCommandError):
+        with pytest.raises(PackageUnsupportedCommandError):
             await projector.get_signal()
 
 
@@ -619,9 +621,31 @@ def test_projector_facade_reraises_device_unsupported_command() -> None:
 
         await projector.connect()
 
-        with pytest.raises(UnsupportedCommandError):
+        with pytest.raises(ProjectorUnsupportedCommandError) as exc_info:
             await projector.get_signal()
 
+        assert exc_info.value.protocol == "adcp"
+        assert exc_info.value.command == "signal ?"
+        assert exc_info.value.response == "unsupported"
+        assert exc_info.value.response_text == "unsupported"
+        assert exc_info.value.response_hex is None
+
+    asyncio.run(run())
+
+
+def test_sdcp_projector_unsupported_error_exposes_response_frame() -> None:
+    async def run() -> None:
+        unsupported_lamp_timer = bytes.fromhex("02 0A 53 4F 4E 59 00 01 13 02 01 80")
+        client = SdcpClient("192.0.2.10", transport=FakeTransport(lambda payload: unsupported_lamp_timer))
+
+        with pytest.raises(ProjectorUnsupportedCommandError) as exc_info:
+            await client.get_lamp_timer()
+
+        assert exc_info.value.protocol == "sdcp"
+        assert exc_info.value.command == "0x0113"
+        assert exc_info.value.response == unsupported_lamp_timer
+        assert exc_info.value.response_hex == unsupported_lamp_timer.hex(" ")
+        assert "Item Error: Not Applicable Item" in str(exc_info.value)
 
     asyncio.run(run())
 
