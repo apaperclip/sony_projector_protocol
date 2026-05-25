@@ -27,6 +27,24 @@ _INPUT_TO_DEVICE = {
 
 _INPUT_FROM_DEVICE = {value: key for key, value in _INPUT_TO_DEVICE.items()}
 
+_PICTURE_MODE_TO_DEVICE = {
+    "brt_cinema": "brt_cinema",
+    "brt_tv": "brt_tv",
+    "cinema_digital": "cinema_digital",
+    "cinema_film1": "cinema_film1",
+    "cinema_film2": "cinema_film2",
+    "game": "game",
+    "photo": "photo",
+    "reference": "reference",
+    "tv": "tv",
+    "user": "user",
+    "user1": "user1",
+    "user2": "user2",
+    "user3": "user3",
+    "bright_cinema": "brt_cinema",
+    "bright_tv": "brt_tv",
+}
+
 
 class AdcpClient:
     """Small async ADCP command client."""
@@ -75,7 +93,8 @@ class AdcpClient:
         return await self._command("picture_mode ?")
 
     async def set_picture_mode(self, value: str) -> None:
-        await self._command(f"picture_mode {self._quoted(value)}")
+        picture_mode = self._mapped_value(value, _PICTURE_MODE_TO_DEVICE, "picture mode")
+        await self._command(f"picture_mode {self._quoted(picture_mode)}")
 
     async def get_color_space(self) -> str:
         return await self._command("color_space ?")
@@ -160,6 +179,12 @@ class AdcpClient:
         if normalized not in {"hdmi1", "hdmi2"}:
             raise PackageUnsupportedCommandError(f"Unsupported dynamic range input: {input_name}")
         return normalized
+
+    def _mapped_value(self, value: str, mapping: dict[str, str], label: str) -> str:
+        normalized = value.strip().strip('"').lower().replace("-", "_").replace(" ", "_")
+        if normalized not in mapping:
+            raise PackageUnsupportedCommandError(f"Unsupported ADCP {label}: {value}")
+        return mapping[normalized]
 
     def _quoted(self, value: str) -> str:
         return value if value.startswith('"') and value.endswith('"') else f'"{value}"'

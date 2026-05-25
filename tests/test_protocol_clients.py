@@ -101,6 +101,70 @@ def test_adcp_picture_mode_command() -> None:
     asyncio.run(run())
 
 
+@pytest.mark.parametrize(
+    "mode",
+    (
+        "cinema_film1",
+        "cinema_film2",
+        "reference",
+        "tv",
+        "photo",
+        "brt_cinema",
+        "brt_tv",
+        "user",
+        "user1",
+        "user2",
+        "user3",
+        "cinema_digital",
+        "game",
+    ),
+)
+def test_adcp_picture_mode_accepts_sony_video_projector_values(mode: str) -> None:
+    async def run() -> None:
+        transport = FakeTransport(lambda payload: b"ok\r\n")
+        client = AdcpClient("192.0.2.10", transport=transport)
+
+        await client.set_picture_mode(mode)
+
+        assert transport.requests == [f'picture_mode "{mode}"\r\n'.encode("ascii")]
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize(
+    ("mode", "device_value"),
+    (
+        ("bright_cinema", "brt_cinema"),
+        ("Bright TV", "brt_tv"),
+        ('"cinema_film1"', "cinema_film1"),
+    ),
+)
+def test_adcp_picture_mode_normalizes_common_aliases(mode: str, device_value: str) -> None:
+    async def run() -> None:
+        transport = FakeTransport(lambda payload: b"ok\r\n")
+        client = AdcpClient("192.0.2.10", transport=transport)
+
+        await client.set_picture_mode(mode)
+
+        assert transport.requests == [f'picture_mode "{device_value}"\r\n'.encode("ascii")]
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("mode", ("sports", "dynamic", "presentation", "brt_priority"))
+def test_adcp_picture_mode_rejects_unsupported_value(mode: str) -> None:
+    async def run() -> None:
+        transport = FakeTransport(lambda payload: b"ok\r\n")
+        client = AdcpClient("192.0.2.10", transport=transport)
+
+        with pytest.raises(PackageUnsupportedCommandError):
+            await client.set_picture_mode(mode)
+
+        assert transport.requests == []
+
+    asyncio.run(run())
+
+
 def test_adcp_color_space_command() -> None:
     async def run() -> None:
         def respond(payload: bytes) -> bytes:
