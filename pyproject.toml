@@ -4,6 +4,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "sony-projector-protocol"
+version = "0.1.1"
 authors = [
     {name = "Sony Projector Protocol Contributors"},
 ]
@@ -18,7 +19,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12"
 ]
 requires-python = ">=3.11"
-dynamic = ["version"]
+#dynamic = ["version"]
 
 [project.optional-dependencies]
 test = [
