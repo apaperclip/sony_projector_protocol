@@ -13,6 +13,9 @@ from __future__ import annotations
 #
 import os
 import sys
+import tomllib
+from importlib.metadata import PackageNotFoundError, version
+from pathlib import Path
 
 sys.path.insert(0, os.path.abspath("../src/"))
 
@@ -24,7 +27,14 @@ copyright = "2026, Sony Projector Protocol Contributors"
 author = "Sony Projector Protocol Contributors"
 
 # The full version, including alpha/beta/rc tags
-release = "0.1.0"
+try:
+    release = version("sony-projector-protocol")
+except PackageNotFoundError:
+    pyproject = Path(__file__).resolve().parents[1] / "pyproject.toml"
+    try:
+        release = tomllib.loads(pyproject.read_text(encoding="utf-8"))["project"]["version"]
+    except (FileNotFoundError, KeyError, tomllib.TOMLDecodeError):
+        release = "0.0.0"
 
 
 # -- General configuration ---------------------------------------------------
