@@ -189,6 +189,19 @@ class AdcpClient:
     def _quoted(self, value: str) -> str:
         return value if value.startswith('"') and value.endswith('"') else f'"{value}"'
 
+    def _response_value(self, text: str) -> str:
+        if "=" in text:
+            return text.split("=", 1)[1].strip().strip('"')
+
+        parts = text.split(maxsplit=1)
+        if len(parts) == 2:
+            return parts[1].strip().strip('"')
+
+        return text.strip('"')
+
+    def _is_error_response(self, lowered: str) -> bool:
+        return lowered.startswith("ng") or (lowered.startswith("err") and not lowered.startswith("error"))
+
     async def _json_value_command(self, command: str, key: str) -> int | float | str:
         response = await self._command(command)
         try:
@@ -248,7 +261,7 @@ class AdcpClient:
     async def _command(self, command: str) -> str:
         payload = f"{command}\r\n".encode("ascii")
         raw = await self.transport.request(payload, timeout=self.timeout)
-        text = raw.decode("ascii", errors="replace").strip().strip('"')
+        text = raw.decode("ascii", errors="replace").strip()
         lowered = text.lower()
 
         if lowered in {"ok", "success"}:
@@ -261,12 +274,12 @@ class AdcpClient:
                 response=text,
             )
         if "=" in text:
-            return text.split("=", 1)[1].strip().strip('"')
-        if lowered.startswith("err") or lowered.startswith("ng"):
+            return self._response_value(text)
+        if self._is_error_response(lowered):
             raise ProjectorProtocolError(
                 f"ADCP command failed: {text}",
                 protocol="adcp",
                 command=command,
                 response=text,
             )
-        return text
+        return self._response_value(text)

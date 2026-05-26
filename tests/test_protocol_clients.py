@@ -102,6 +102,37 @@ def test_adcp_picture_mode_command() -> None:
 
 
 @pytest.mark.parametrize(
+    ("response", "expected"),
+    (
+        (b"picture_mode=cinema_film1\r\n", "cinema_film1"),
+        (b'picture_mode="cinema_film1"\r\n', "cinema_film1"),
+        (b'picture_mode "cinema_film1"\r\n', "cinema_film1"),
+        (b'"cinema_film1"\r\n', "cinema_film1"),
+        (b"cinema_film1\r\n", "cinema_film1"),
+    ),
+)
+def test_adcp_picture_mode_getter_parses_response_shapes(response: bytes, expected: str) -> None:
+    async def run() -> None:
+        transport = FakeTransport(lambda payload: response)
+        client = AdcpClient("192.0.2.10", transport=transport)
+
+        assert await client.get_picture_mode() == expected
+        assert transport.requests == [b"picture_mode ?\r\n"]
+
+    asyncio.run(run())
+
+
+def test_adcp_picture_mode_getter_parses_command_value_response() -> None:
+    async def run() -> None:
+        transport = FakeTransport(lambda payload: b'picture_mode "cinema_film1"\r\n')
+        client = AdcpClient("192.0.2.10", transport=transport)
+
+        assert await client.get_picture_mode() == "cinema_film1"
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize(
     "mode",
     (
         "cinema_film1",

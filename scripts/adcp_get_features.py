@@ -19,7 +19,8 @@ from sony_projector_protocol.adcp import AdcpClient
 @dataclass(frozen=True)
 class Getter:
     name: str
-    method: str
+    method: str | None = None
+    command: str | None = None
 
 
 GETTERS = (
@@ -29,6 +30,8 @@ GETTERS = (
     Getter("temperature", "get_temperature"),
     Getter("timer", "get_timer"),
     Getter("picture_mode", "get_picture_mode"),
+    Getter("picture_mode_range", command="picture_mode --range"),
+    Getter("picture_mode_info", command="picture_mode --info"),
     Getter("color_space", "get_color_space"),
     Getter("lamp_control", "get_lamp_control"),
     Getter("warning", "get_warning"),
@@ -51,22 +54,41 @@ def jsonable(value: Any) -> Any:
     return value
 
 
-async def poll_getter(client: AdcpClient, getter: Getter) -> dict[str, Any]:
+def parse_json(value: str) -> Any:
     try:
-        value = await getattr(client, getter.method)()
+        return json.loads(value)
+    except json.JSONDecodeError:
+        return value
+
+
+async def poll_getter(client: AdcpClient, getter: Getter) -> dict[str, Any]:
+    if getter.method is None and getter.command is None:
+        raise ValueError(f"Getter {getter.name} must define method or command")
+
+    try:
+        if getter.method is not None:
+            value = await getattr(client, getter.method)()
+        else:
+            value = parse_json(await client._command(getter.command or ""))
     except Exception as exc:  # noqa: BLE001 - live probe should keep polling.
-        return {
+        result = {
             "name": getter.name,
-            "method": getter.method,
             "ok": False,
             "error": f"{type(exc).__name__}: {exc}",
         }
-    return {
-        "name": getter.name,
-        "method": getter.method,
-        "ok": True,
-        "value": jsonable(value),
-    }
+    else:
+        result = {
+            "name": getter.name,
+            "ok": True,
+            "value": jsonable(value),
+        }
+
+    if getter.method is not None:
+        result["method"] = getter.method
+    if getter.command is not None:
+        result["command"] = getter.command
+
+    return result
 
 
 async def poll_once(client: AdcpClient, delay: float) -> list[dict[str, Any]]:
