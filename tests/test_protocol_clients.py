@@ -9,10 +9,14 @@ from pathlib import Path
 import pytest
 
 from sony_projector_protocol import (DEFAULT_SDCP_COMMUNITY,
+                                     FEATURE_PICTURE_MODE, SERIES_BY_KEY,
                                      PackageUnsupportedCommandError, Projector,
                                      ProjectorIdentity,
                                      ProjectorUnsupportedCommandError,
-                                     discover, parse_sdap_packet)
+                                     discover, get_adcp_picture_mode_options,
+                                     get_feature_values, get_projector_series,
+                                     get_series_feature_values,
+                                     normalize_model_name, parse_sdap_packet)
 from sony_projector_protocol.adcp import AdcpClient
 from sony_projector_protocol.discovery import DiscoveredProjector
 from sony_projector_protocol.exceptions import UnsupportedCommandError
@@ -163,6 +167,33 @@ def test_adcp_picture_mode_accepts_sony_video_projector_values(mode: str) -> Non
 
 
 @pytest.mark.parametrize(
+    "mode",
+    (
+        "dynamic",
+        "standard",
+        "brt_priority",
+        "multi_screen",
+        "presentation",
+        "blackboard",
+        "whiteboard",
+        "cinema",
+        "vivid",
+        "srgb",
+    ),
+)
+def test_adcp_picture_mode_accepts_sony_data_projector_values(mode: str) -> None:
+    async def run() -> None:
+        transport = FakeTransport(lambda payload: b"ok\r\n")
+        client = AdcpClient("192.0.2.10", transport=transport)
+
+        await client.set_picture_mode(mode)
+
+        assert transport.requests == [f'picture_mode "{mode}"\r\n'.encode("ascii")]
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize(
     ("mode", "device_value"),
     (
         ("bright_cinema", "brt_cinema"),
@@ -182,7 +213,7 @@ def test_adcp_picture_mode_normalizes_common_aliases(mode: str, device_value: st
     asyncio.run(run())
 
 
-@pytest.mark.parametrize("mode", ("sports", "dynamic", "presentation", "brt_priority"))
+@pytest.mark.parametrize("mode", ("sports", "movie_bright", "cinema_bright"))
 def test_adcp_picture_mode_rejects_unsupported_value(mode: str) -> None:
     async def run() -> None:
         transport = FakeTransport(lambda payload: b"ok\r\n")
@@ -194,6 +225,131 @@ def test_adcp_picture_mode_rejects_unsupported_value(mode: str) -> None:
         assert transport.requests == []
 
     asyncio.run(run())
+
+
+@pytest.mark.parametrize(
+    ("model", "expected"),
+    (
+        (
+            "VPL-XW5000",
+            (
+                "cinema_film1",
+                "cinema_film2",
+                "reference",
+                "tv",
+                "photo",
+                "brt_cinema",
+                "brt_tv",
+                "game",
+                "user1",
+                "user3",
+            ),
+        ),
+        (
+            "VPL-VW5000",
+            (
+                "cinema_film1",
+                "cinema_film2",
+                "reference",
+                "tv",
+                "photo",
+                "brt_cinema",
+                "brt_tv",
+                "game",
+                "user1",
+                "user2",
+                "user3",
+                "cinema_digital",
+            ),
+        ),
+        (
+            "VPL-VW285ES",
+            (
+                "cinema_film1",
+                "cinema_film2",
+                "reference",
+                "tv",
+                "photo",
+                "brt_cinema",
+                "brt_tv",
+                "game",
+                "user",
+            ),
+        ),
+        (
+            "VPL-VW315ES",
+            (
+                "cinema_film1",
+                "cinema_film2",
+                "reference",
+                "tv",
+                "photo",
+                "brt_cinema",
+                "brt_tv",
+                "game",
+                "user",
+            ),
+        ),
+        ("VPL-FHZ120L", ("dynamic", "standard", "brt_priority", "multi_screen", "srgb")),
+        (
+            "VPL-EX345",
+            ("dynamic", "standard", "presentation", "blackboard", "whiteboard", "cinema", "srgb"),
+        ),
+        (
+            "VPL-EX575",
+            ("dynamic", "standard", "presentation", "blackboard", "whiteboard", "cinema", "vivid"),
+        ),
+    ),
+)
+def test_adcp_picture_mode_options_for_known_models(model: str, expected: tuple[str, ...]) -> None:
+    assert get_adcp_picture_mode_options(model) == expected
+    assert get_feature_values(model, FEATURE_PICTURE_MODE) == expected
+
+
+@pytest.mark.parametrize(
+    ("model", "normalized"),
+    (
+        (" vpl-xw5000 ", "VPL-XW5000"),
+        ("xw5000", "VPL-XW5000"),
+        ("vw-365es", "VPL-VW365ES"),
+        ("VPL_XW5000", "VPL-XW5000"),
+    ),
+)
+def test_capability_model_normalization(model: str, normalized: str) -> None:
+    assert normalize_model_name(model) == normalized
+    assert get_adcp_picture_mode_options(model) == get_adcp_picture_mode_options(normalized)
+
+
+def test_capability_lookup_returns_none_for_unknown_model_or_feature() -> None:
+    assert get_projector_series("VPL-NOTREAL") is None
+    assert get_adcp_picture_mode_options("VPL-NOTREAL") is None
+    assert get_feature_values("VPL-XW5000", "not_a_feature") is None
+
+
+def test_capability_series_lookup() -> None:
+    series = get_projector_series("VPL-XW5000")
+
+    assert series is not None
+    assert series.key == "adcp_video_xw5000"
+    assert series.display_name == "XW5000"
+    assert get_series_feature_values(series.key, FEATURE_PICTURE_MODE) == get_adcp_picture_mode_options("VPL-XW5000")
+    assert get_series_feature_values(series.key, "not_a_feature") is None
+
+
+def test_capability_video_model_list_uses_official_series_mapping() -> None:
+    assert get_projector_series("VPL-VW315ES").display_name == "VW365ES"  # type: ignore[union-attr]
+    assert get_projector_series("VPL-VW385ES").display_name == "VW360ES"  # type: ignore[union-attr]
+    assert get_projector_series("VPL-VW1025ES").display_name == "VW890ES/VW870ES"  # type: ignore[union-attr]
+    assert get_projector_series("VPL-XW5100").display_name == "XW5100"  # type: ignore[union-attr]
+
+
+def test_capability_models_map_to_one_series() -> None:
+    models_by_name: dict[str, list[str]] = {}
+    for series in SERIES_BY_KEY.values():
+        for model in series.models:
+            models_by_name.setdefault(normalize_model_name(model), []).append(series.key)
+
+    assert {model: keys for model, keys in models_by_name.items() if len(keys) > 1} == {}
 
 
 def test_adcp_color_space_command() -> None:
@@ -701,7 +857,6 @@ def test_projector_facade_rejects_wrong_protocol_command() -> None:
 
         with pytest.raises(PackageUnsupportedCommandError):
             await projector.get_signal()
-
 
     asyncio.run(run())
 

@@ -6,6 +6,7 @@ import asyncio
 import hashlib
 import json
 
+from sony_projector_protocol.capabilities import ADCP_PICTURE_MODE_VALUES
 from sony_projector_protocol.exceptions import (
     PackageUnsupportedCommandError, ProjectorAuthenticationError,
     ProjectorConnectionError, ProjectorProtocolError,
@@ -27,20 +28,7 @@ _INPUT_TO_DEVICE = {
 
 _INPUT_FROM_DEVICE = {value: key for key, value in _INPUT_TO_DEVICE.items()}
 
-_PICTURE_MODE_TO_DEVICE = {
-    "brt_cinema": "brt_cinema",
-    "brt_tv": "brt_tv",
-    "cinema_digital": "cinema_digital",
-    "cinema_film1": "cinema_film1",
-    "cinema_film2": "cinema_film2",
-    "game": "game",
-    "photo": "photo",
-    "reference": "reference",
-    "tv": "tv",
-    "user": "user",
-    "user1": "user1",
-    "user2": "user2",
-    "user3": "user3",
+_PICTURE_MODE_TO_DEVICE = {value: value for value in ADCP_PICTURE_MODE_VALUES} | {
     "bright_cinema": "brt_cinema",
     "bright_tv": "brt_tv",
 }

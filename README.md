@@ -103,6 +103,22 @@ print(identity.mac_address)
 
 SDCP identity reads model name, serial number, installation location, and MAC address. ADCP identity reads model name, serial number, and MAC address; installation location is returned as `None` because the ADCP command set does not expose it.
 
+## Model Capability Helpers
+
+The package includes static, model-aware capability helpers for integrations that need setup-time option lists. The first supported feature is ADCP `picture_mode`, which can be used by Home Assistant select entities.
+
+```python
+from sony_projector_protocol import get_adcp_picture_mode_options
+
+identity = await projector.get_identity()
+options = get_adcp_picture_mode_options(identity.model or "")
+
+if options is not None:
+    print(options)
+```
+
+Capability data is organized as model-to-series mappings and series-to-feature mappings, matching Sony's supported command lists. Unknown or unlisted models return `None` so integrations can omit the entity, disable it, or apply their own override policy. The helpers do not rely on ADCP `--range` or `--info` metadata commands.
+
 ## Unsupported Commands
 
 Projector features vary by model and protocol. Unsupported requests raise `UnsupportedCommandError`.
