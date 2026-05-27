@@ -4,7 +4,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "sony-projector-protocol"
-version = "0.1.5"
+version = "0.2.0dev0"
 authors = [
     {name = "Sony Projector Protocol Contributors"},
 ]
