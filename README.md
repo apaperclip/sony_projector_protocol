@@ -105,19 +105,40 @@ SDCP identity reads model name, serial number, installation location, and MAC ad
 
 ## Model Capability Helpers
 
-The package includes static, model-aware capability helpers for integrations that need setup-time option lists. The first supported feature is ADCP `picture_mode`, which can be used by Home Assistant select entities.
+The package includes static, model-aware capability helpers for integrations that need setup-time option lists. Feature keys are protocol-specific because Sony ADCP and SDCP commands use different names, encodings, and support tables. The first supported feature is ADCP `picture_mode`, which can be used by Home Assistant select entities.
 
 ```python
-from sony_projector_protocol import get_adcp_picture_mode_options
+from sony_projector_protocol import (
+    FEATURE_ADCP_PICTURE_MODE,
+    PROTOCOL_ADCP,
+    get_adcp_picture_mode_options,
+    get_feature_values,
+)
 
 identity = await projector.get_identity()
-options = get_adcp_picture_mode_options(identity.model or "")
+model = identity.model or ""
 
-if options is not None:
-    print(options)
+options = get_adcp_picture_mode_options(model)
+# Equivalent:
+options = get_feature_values(model, FEATURE_ADCP_PICTURE_MODE, protocol=PROTOCOL_ADCP)
+
+if options is None:
+    # Unknown model or unsupported feature. Do not create the select entity,
+    # mark it unavailable, or use an integration-level override.
+    return
+
+print(options)
 ```
 
-Capability data is organized as model-to-series mappings and series-to-feature mappings, matching Sony's supported command lists. Unknown or unlisted models return `None` so integrations can omit the entity, disable it, or apply their own override policy. The helpers do not rely on ADCP `--range` or `--info` metadata commands.
+Use returned values as command values for methods such as `set_picture_mode`. Capability data is organized as model-to-series mappings and series-to-feature mappings, matching Sony's supported command lists. Unknown or unlisted models return `None` so integrations can omit the entity, disable it, or apply their own override policy.
+
+Integration notes:
+
+- Do not call ADCP `--range` or `--info` for option discovery; these metadata commands are not reliable on tested hardware.
+- Do not use SDCP `community` for ADCP capability lookup.
+- Do not reuse ADCP option lists for SDCP entities. Similar concepts, such as ADCP `picture_mode` and SDCP `calibration_preset`, have separate protocol-specific feature keys.
+- SDCP currently exposes generic package-supported option lists for any returned model. A projector may still reject a specific SDCP command as not applicable at runtime.
+- Store user overrides in the integration, not in this library.
 
 ## Unsupported Commands
 

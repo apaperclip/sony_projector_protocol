@@ -9,7 +9,11 @@ from pathlib import Path
 import pytest
 
 from sony_projector_protocol import (DEFAULT_SDCP_COMMUNITY,
-                                     FEATURE_PICTURE_MODE, SERIES_BY_KEY,
+                                     FEATURE_ADCP_PICTURE_MODE,
+                                     FEATURE_SDCP_CALIBRATION_PRESET,
+                                     PROTOCOL_ADCP, PROTOCOL_SDCP,
+                                     SDCP_CALIBRATION_PRESET_VALUES,
+                                     SERIES_BY_KEY,
                                      PackageUnsupportedCommandError, Projector,
                                      ProjectorIdentity,
                                      ProjectorUnsupportedCommandError,
@@ -303,7 +307,8 @@ def test_adcp_picture_mode_rejects_unsupported_value(mode: str) -> None:
 )
 def test_adcp_picture_mode_options_for_known_models(model: str, expected: tuple[str, ...]) -> None:
     assert get_adcp_picture_mode_options(model) == expected
-    assert get_feature_values(model, FEATURE_PICTURE_MODE) == expected
+    assert get_feature_values(model, FEATURE_ADCP_PICTURE_MODE) == expected
+    assert get_feature_values(model, FEATURE_ADCP_PICTURE_MODE, protocol=PROTOCOL_ADCP) == expected
 
 
 @pytest.mark.parametrize(
@@ -324,6 +329,8 @@ def test_capability_lookup_returns_none_for_unknown_model_or_feature() -> None:
     assert get_projector_series("VPL-NOTREAL") is None
     assert get_adcp_picture_mode_options("VPL-NOTREAL") is None
     assert get_feature_values("VPL-XW5000", "not_a_feature") is None
+    assert get_feature_values("VPL-XW5000", "picture_mode") is None
+    assert get_feature_values("VPL-XW5000", FEATURE_SDCP_CALIBRATION_PRESET) == SDCP_CALIBRATION_PRESET_VALUES
 
 
 def test_capability_series_lookup() -> None:
@@ -332,8 +339,26 @@ def test_capability_series_lookup() -> None:
     assert series is not None
     assert series.key == "adcp_video_xw5000"
     assert series.display_name == "XW5000"
-    assert get_series_feature_values(series.key, FEATURE_PICTURE_MODE) == get_adcp_picture_mode_options("VPL-XW5000")
+    assert get_projector_series("VPL-XW5000", protocol=PROTOCOL_ADCP) == series
+    assert get_series_feature_values(series.key, FEATURE_ADCP_PICTURE_MODE) == get_adcp_picture_mode_options(
+        "VPL-XW5000"
+    )
     assert get_series_feature_values(series.key, "not_a_feature") is None
+
+
+def test_sdcp_capability_lookup_allows_any_returned_model() -> None:
+    known_model_series = get_projector_series("VPL-XW5000", protocol=PROTOCOL_SDCP)
+    unknown_model_series = get_projector_series("VPL-NOTREAL", protocol=PROTOCOL_SDCP)
+
+    assert known_model_series is not None
+    assert known_model_series.key == "sdcp_any_model"
+    assert unknown_model_series == known_model_series
+    assert get_feature_values("VPL-XW5000", FEATURE_SDCP_CALIBRATION_PRESET, protocol=PROTOCOL_SDCP) == (
+        SDCP_CALIBRATION_PRESET_VALUES
+    )
+    assert get_feature_values("VPL-NOTREAL", FEATURE_SDCP_CALIBRATION_PRESET, protocol=PROTOCOL_SDCP) == (
+        SDCP_CALIBRATION_PRESET_VALUES
+    )
 
 
 def test_capability_video_model_list_uses_official_series_mapping() -> None:
@@ -344,12 +369,13 @@ def test_capability_video_model_list_uses_official_series_mapping() -> None:
 
 
 def test_capability_models_map_to_one_series() -> None:
-    models_by_name: dict[str, list[str]] = {}
+    models_by_protocol: dict[tuple[str, str], list[str]] = {}
     for series in SERIES_BY_KEY.values():
         for model in series.models:
-            models_by_name.setdefault(normalize_model_name(model), []).append(series.key)
+            key = (series.protocol, normalize_model_name(model))
+            models_by_protocol.setdefault(key, []).append(series.key)
 
-    assert {model: keys for model, keys in models_by_name.items() if len(keys) > 1} == {}
+    assert {model: keys for model, keys in models_by_protocol.items() if len(keys) > 1} == {}
 
 
 def test_adcp_color_space_command() -> None:

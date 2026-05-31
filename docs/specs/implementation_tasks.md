@@ -138,7 +138,7 @@ Acceptance criteria:
 - Mark commands as MVP, Version 0.2, or experimental. Done.
 - Confirm command names, item numbers, and value mappings against source references or captured sessions.
 - Add tests for any corrected mappings.
-- Do not maintain a model capability matrix; projector-level unsupported responses should raise `ProjectorUnsupportedCommandError` with response metadata.
+- Do not maintain a runtime capability cache. Static source-reference option data may be exposed for setup-time integration helpers, while projector-level unsupported responses should still raise `ProjectorUnsupportedCommandError` with response metadata.
 
 ### 10. Add Captured-Session Replay Tests
 

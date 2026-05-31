@@ -8,7 +8,9 @@ from pathlib import Path
 
 from sony_projector_protocol.capabilities import (
     ADCP_PICTURE_MODE_LABELS, ADCP_PICTURE_MODE_VALUES, CAPABILITIES_BY_SERIES,
-    FEATURE_PICTURE_MODE, MODEL_TO_SERIES, SERIES_BY_KEY, FeatureSupport,
+    FEATURE_ADCP_PICTURE_MODE, FEATURE_SDCP_CALIBRATION_PRESET,
+    MODEL_TO_SERIES, PROTOCOL_ADCP, PROTOCOL_SDCP,
+    SDCP_CALIBRATION_PRESET_VALUES, SERIES_BY_KEY, FeatureSupport,
     ProjectorSeries, SeriesCapabilities, get_adcp_picture_mode_options,
     get_feature_values, get_projector_series, get_series_feature_values,
     normalize_model_name)
@@ -29,9 +31,12 @@ __all__ = [
     "CAPABILITIES_BY_SERIES",
     "DEFAULT_SDCP_COMMUNITY",
     "DiscoveredProjector",
-    "FEATURE_PICTURE_MODE",
+    "FEATURE_ADCP_PICTURE_MODE",
+    "FEATURE_SDCP_CALIBRATION_PRESET",
     "FeatureSupport",
     "MODEL_TO_SERIES",
+    "PROTOCOL_ADCP",
+    "PROTOCOL_SDCP",
     "Projector",
     "ProjectorIdentity",
     "ProjectorSeries",
@@ -42,6 +47,7 @@ __all__ = [
     "ProjectorTimeoutError",
     "PackageUnsupportedCommandError",
     "ProjectorUnsupportedCommandError",
+    "SDCP_CALIBRATION_PRESET_VALUES",
     "SERIES_BY_KEY",
     "SeriesCapabilities",
     "UnsupportedCommandError",

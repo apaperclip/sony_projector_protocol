@@ -13,6 +13,9 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+from sony_projector_protocol import (FEATURE_ADCP_PICTURE_MODE, PROTOCOL_ADCP,
+                                     get_adcp_picture_mode_options,
+                                     get_feature_values, get_projector_series)
 from sony_projector_protocol.adcp import AdcpClient
 
 
@@ -59,6 +62,30 @@ def parse_json(value: str) -> Any:
         return json.loads(value)
     except json.JSONDecodeError:
         return value
+
+
+async def capability_snapshot(client: AdcpClient) -> dict[str, Any]:
+    try:
+        identity = await client.get_identity()
+    except Exception as exc:  # noqa: BLE001 - live probe should report capability lookup failures.
+        return {
+            "ok": False,
+            "error": f"{type(exc).__name__}: {exc}",
+        }
+
+    model = identity.model or ""
+    series = get_projector_series(model, protocol=PROTOCOL_ADCP)
+    picture_mode_options = get_adcp_picture_mode_options(model)
+
+    return {
+        "ok": True,
+        "model": model or None,
+        "series": jsonable(series) if series is not None else None,
+        "features": {
+            FEATURE_ADCP_PICTURE_MODE: picture_mode_options,
+            "generic_lookup": get_feature_values(model, FEATURE_ADCP_PICTURE_MODE, protocol=PROTOCOL_ADCP),
+        },
+    }
 
 
 async def poll_getter(client: AdcpClient, getter: Getter) -> dict[str, Any]:
@@ -110,8 +137,18 @@ async def probe(
     interval: float,
 ) -> dict[str, Any]:
     client = AdcpClient(host, timeout=timeout, password=password)
-    await client.connect()
     try:
+        await client.connect()
+    except Exception as exc:  # noqa: BLE001 - live probe should report startup failures as JSON.
+        return {
+            "host": host,
+            "protocol": "adcp",
+            "ok": False,
+            "error": f"{type(exc).__name__}: {exc}",
+        }
+
+    try:
+        capabilities = await capability_snapshot(client)
         polls = []
         for index in range(count):
             polls.append({"index": index + 1, "features": await poll_once(client, delay)})
@@ -120,7 +157,7 @@ async def probe(
     finally:
         await client.close()
 
-    return {"host": host, "protocol": "adcp", "polls": polls}
+    return {"host": host, "protocol": "adcp", "ok": True, "capabilities": capabilities, "polls": polls}
 
 
 def main() -> None:
