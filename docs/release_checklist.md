@@ -5,6 +5,7 @@ Use this checklist before publishing to TestPyPI or PyPI.
 - Confirm the public protocol contract requires explicit `protocol="adcp"` or `protocol="sdcp"`.
 - Run `pytest`.
 - Run formatting and linting checks configured for the project.
+- Build the documentation with `python -m sphinx -b html docs docs/_build/html`.
 - Build source and wheel distributions.
 - Inspect the generated distribution metadata for package name, version, README rendering, classifiers, and project URLs.
 - Publish to TestPyPI first.

@@ -1,5 +1,11 @@
 [MASTER]
 
+# Historical Pylint Reference
+
+This file is retained as a historical template reference. The current package
+does not use it as an active lint configuration unless a developer explicitly
+passes it to Pylint.
+
 # A comma-separated list of package or module names from where C extensions may
 # be loaded. Extensions are loading into the active Python interpreter and may
 # run arbitrary code.

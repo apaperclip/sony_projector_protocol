@@ -1,5 +1,26 @@
 # Developer Guide
 
+## Local Setup
+
+Install the package with test dependencies in a virtual environment:
+
+```bash
+python -m pip install -e ".[test]"
+```
+
+Run the offline test suite before opening a pull request:
+
+```bash
+pytest
+```
+
+For documentation changes, install the docs requirements and build the Sphinx site:
+
+```bash
+python -m pip install -r docs/requirements.txt
+python -m sphinx -b html docs docs/_build/html
+```
+
 ## Adding Capability Data
 
 Capability data is static source-reference data for setup-time option lists. It is not a runtime cache and it should not replace projector-side unsupported-command handling.
@@ -42,4 +63,17 @@ _series_definition(
 )
 ```
 
-## Testing Template Project
+## Captured Sessions
+
+Captured-session fixtures preserve real projector responses without requiring live hardware during unit tests. See `docs/captured_sessions.md` for the fixture shape and sanitization rules.
+
+When adding a captured session:
+
+1. Remove or replace serial numbers, MAC addresses, IP addresses, room names, and passwords.
+2. Store raw request and response bytes as hex strings.
+3. Replay fixtures through fake transports, not live sockets.
+4. Keep at least one representative fixture for each protocol family.
+
+## Release Notes
+
+Use `docs/release_checklist.md` before publishing to TestPyPI or PyPI. The release flow should verify package metadata, build artifacts, TestPyPI installation, and a smoke-test import before publishing to PyPI.

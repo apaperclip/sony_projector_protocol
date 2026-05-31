@@ -38,6 +38,17 @@ This matrix records the current public facade surface and whether each command i
 | Input lag reduction | _None_ | _None_ | `get_input_lag_reduction` | `set_input_lag_reduction` |
 | Menu position | _None_ | _None_ | `get_menu_position` | `set_menu_position` |
 
+## Static Option Helpers
+
+Some commands need model-aware option lists before an integration creates a select entity.
+
+| Feature key | Protocol | Command methods | Lookup behavior |
+| --- | --- | --- | --- |
+| `FEATURE_ADCP_PICTURE_MODE` | ADCP | `get_picture_mode`, `set_picture_mode` | Uses Sony model-to-series mappings. Unknown or unlisted ADCP models return `None`. |
+| `FEATURE_SDCP_CALIBRATION_PRESET` | SDCP | `get_calibration_preset`, `set_calibration_preset` | Uses the package-supported SDCP fallback for any returned model. Projectors may still reject unsupported values at runtime. |
+
+Use `get_feature_values(model, feature, protocol=...)` for generic lookup, or `get_adcp_picture_mode_options(model)` for the ADCP picture-mode convenience helper. Do not reuse ADCP option lists for SDCP entities.
+
 ## Protocol-Neutral Facade Methods
 
 These methods are exposed on `Projector` for both protocols where the selected client supports the command:
