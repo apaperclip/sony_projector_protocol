@@ -327,7 +327,9 @@ def test_capability_model_normalization(model: str, normalized: str) -> None:
 
 def test_capability_lookup_returns_none_for_unknown_model_or_feature() -> None:
     assert get_projector_series("VPL-NOTREAL") is None
+    assert get_projector_series("VPL-NOTREAL", protocol=PROTOCOL_ADCP) is None
     assert get_adcp_picture_mode_options("VPL-NOTREAL") is None
+    assert get_feature_values("VPL-NOTREAL", FEATURE_ADCP_PICTURE_MODE) is None
     assert get_feature_values("VPL-XW5000", "not_a_feature") is None
     assert get_feature_values("VPL-XW5000", "picture_mode") is None
     assert get_feature_values("VPL-XW5000", FEATURE_SDCP_CALIBRATION_PRESET) == SDCP_CALIBRATION_PRESET_VALUES
@@ -359,6 +361,14 @@ def test_sdcp_capability_lookup_allows_any_returned_model() -> None:
     assert get_feature_values("VPL-NOTREAL", FEATURE_SDCP_CALIBRATION_PRESET, protocol=PROTOCOL_SDCP) == (
         SDCP_CALIBRATION_PRESET_VALUES
     )
+    assert get_feature_values("VPL-NOTREAL", FEATURE_SDCP_CALIBRATION_PRESET) == SDCP_CALIBRATION_PRESET_VALUES
+
+
+def test_capability_lookup_does_not_cross_protocol_feature_keys() -> None:
+    assert get_feature_values("VPL-XW5000", FEATURE_ADCP_PICTURE_MODE, protocol=PROTOCOL_SDCP) is None
+    assert get_feature_values("VPL-XW5000", FEATURE_SDCP_CALIBRATION_PRESET, protocol=PROTOCOL_ADCP) is None
+    assert get_feature_values("VPL-NOTREAL", FEATURE_ADCP_PICTURE_MODE, protocol=PROTOCOL_SDCP) is None
+    assert get_series_feature_values("sdcp_any_model", FEATURE_ADCP_PICTURE_MODE) is None
 
 
 def test_capability_video_model_list_uses_official_series_mapping() -> None:

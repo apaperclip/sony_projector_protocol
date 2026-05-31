@@ -2,7 +2,7 @@
 
 ## Adding Capability Data
 
-Capability data is static source-reference data for model-specific option lists. It is not a runtime cache and it should not replace projector-side unsupported-command handling.
+Capability data is static source-reference data for setup-time option lists. It is not a runtime cache and it should not replace projector-side unsupported-command handling.
 
 When adding a new model-specific option feature:
 
@@ -16,7 +16,16 @@ When adding a new model-specific option feature:
 
 The same physical model may appear in both ADCP and SDCP capability data, but it must not appear twice within one protocol.
 
-SDCP may use generic protocol fallback rows for package-supported option lists that are not model-specific. Runtime `ProjectorUnsupportedCommandError` handling is still required because projectors can reject an SDCP item as not applicable.
+ADCP capability rows should normally be official Sony series rows. Unknown or unlisted ADCP models should return `None` so integrations can decide whether to omit the entity, mark it unavailable, or apply their own override.
+
+SDCP may use generic protocol fallback rows for package-supported option lists that are not model-specific. Use an empty `models=()` tuple for these fallback rows and register the fallback in `_FALLBACK_SERIES_BY_PROTOCOL`. Runtime `ProjectorUnsupportedCommandError` handling is still required because projectors can reject an SDCP item as not applicable.
+
+When adding or changing fallback behavior, add tests for all of these cases:
+
+1. Explicit protocol lookup returns the fallback for an unknown model.
+2. Feature-key inference returns the fallback for that protocol-scoped feature.
+3. A wrong protocol and feature combination returns `None`.
+4. The fallback does not make unrelated protocols appear supported.
 
 Example:
 

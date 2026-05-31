@@ -45,6 +45,38 @@ await projector.set_power(True)
 await projector.set_input("hdmi1")
 ```
 
+## Select Entity Options
+
+Use the static capability helpers during setup when a select entity needs valid options before the entity is created. Keep ADCP and SDCP feature keys separate.
+
+```python
+from sony_projector_protocol import (
+    FEATURE_ADCP_PICTURE_MODE,
+    FEATURE_SDCP_CALIBRATION_PRESET,
+    PROTOCOL_ADCP,
+    PROTOCOL_SDCP,
+    get_adcp_picture_mode_options,
+    get_feature_values,
+)
+
+identity = await projector.get_identity()
+model = identity.model or ""
+
+if configured_protocol == PROTOCOL_ADCP:
+    options = get_adcp_picture_mode_options(model)
+    # Equivalent:
+    options = get_feature_values(model, FEATURE_ADCP_PICTURE_MODE, protocol=PROTOCOL_ADCP)
+else:
+    options = get_feature_values(model, FEATURE_SDCP_CALIBRATION_PRESET, protocol=PROTOCOL_SDCP)
+
+if options is None:
+    return
+```
+
+ADCP option lists are model-aware and follow Sony's model-to-series command-list mapping. Unknown ADCP models return `None`. SDCP calibration preset lookup returns the package-supported option list for any returned model when `protocol="sdcp"` is requested, but the projector may still reject a command as not applicable at runtime.
+
+For ADCP, do not call `--range` or `--info` to discover select options. They are not reliable on tested hardware. Do not use SDCP `community` for ADCP capability lookup, and do not reuse ADCP option lists for SDCP select entities.
+
 ## Exceptions
 
 ```python
