@@ -6,7 +6,9 @@ import asyncio
 import hashlib
 import json
 
-from sony_projector_protocol.capabilities import ADCP_PICTURE_MODE_VALUES
+from sony_projector_protocol.capabilities import (ADCP_COLOR_SPACE_VALUES,
+                                                  ADCP_INPUT_VALUES,
+                                                  ADCP_PICTURE_MODE_VALUES)
 from sony_projector_protocol.exceptions import (
     PackageUnsupportedCommandError, ProjectorAuthenticationError,
     ProjectorConnectionError, ProjectorProtocolError,
@@ -22,8 +24,7 @@ _POWER_TO_DEVICE = {
 }
 
 _INPUT_TO_DEVICE = {
-    "hdmi1": "hdmi1",
-    "hdmi2": "hdmi2",
+    value: value for value in ADCP_INPUT_VALUES
 }
 
 _INPUT_FROM_DEVICE = {value: key for key, value in _INPUT_TO_DEVICE.items()}
@@ -32,6 +33,8 @@ _PICTURE_MODE_TO_DEVICE = {value: value for value in ADCP_PICTURE_MODE_VALUES} |
     "bright_cinema": "brt_cinema",
     "bright_tv": "brt_tv",
 }
+
+_COLOR_SPACE_TO_DEVICE = {value: value for value in ADCP_COLOR_SPACE_VALUES}
 
 
 class AdcpClient:
@@ -88,7 +91,8 @@ class AdcpClient:
         return await self._command("color_space ?")
 
     async def set_color_space(self, value: str) -> None:
-        await self._command(f"color_space {self._quoted(value)}")
+        color_space = self._mapped_value(value, _COLOR_SPACE_TO_DEVICE, "color space")
+        await self._command(f"color_space {self._quoted(color_space)}")
 
     async def get_lamp_control(self) -> str:
         return await self._command("lamp_control ?")
@@ -147,8 +151,8 @@ class AdcpClient:
         return await self._command("mac_address ?")
 
     async def set_input(self, value: str) -> None:
-        input_value = _INPUT_TO_DEVICE.get(value.lower(), value)
-        await self._command(f"input {input_value}")
+        input_value = self._mapped_value(value, _INPUT_TO_DEVICE, "input")
+        await self._command(f"input {self._quoted(input_value)}")
 
     async def get_identity(self) -> ProjectorIdentity:
         model = await self._optional_command("modelname ?")

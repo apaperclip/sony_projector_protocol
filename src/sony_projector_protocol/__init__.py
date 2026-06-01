@@ -7,13 +7,15 @@ from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 from sony_projector_protocol.capabilities import (
+    ADCP_COLOR_SPACE_LABELS, ADCP_COLOR_SPACE_VALUES, ADCP_INPUT_VALUES,
     ADCP_PICTURE_MODE_LABELS, ADCP_PICTURE_MODE_VALUES, CAPABILITIES_BY_SERIES,
-    FEATURE_ADCP_PICTURE_MODE, FEATURE_SDCP_CALIBRATION_PRESET,
-    MODEL_TO_SERIES, PROTOCOL_ADCP, PROTOCOL_SDCP,
-    SDCP_CALIBRATION_PRESET_VALUES, SERIES_BY_KEY, FeatureSupport,
-    ProjectorSeries, SeriesCapabilities, get_adcp_picture_mode_options,
-    get_feature_values, get_projector_series, get_series_feature_values,
-    normalize_model_name)
+    FEATURE_ADCP_COLOR_SPACE, FEATURE_ADCP_INPUT, FEATURE_ADCP_PICTURE_MODE,
+    FEATURE_SDCP_CALIBRATION_PRESET, FEATURE_SDCP_COLOR_SPACE,
+    FEATURE_SDCP_INPUT, MODEL_TO_SERIES, PROTOCOL_ADCP, PROTOCOL_SDCP,
+    SDCP_CALIBRATION_PRESET_VALUES, SDCP_COLOR_SPACE_VALUES, SDCP_INPUT_VALUES,
+    SERIES_BY_KEY, FeatureSupport, ProjectorSeries, SeriesCapabilities,
+    get_adcp_picture_mode_options, get_feature_values, get_projector_series,
+    get_series_feature_values, normalize_model_name)
 from sony_projector_protocol.discovery import (DiscoveredProjector, discover,
                                                parse_sdap_packet)
 from sony_projector_protocol.exceptions import (
@@ -28,11 +30,18 @@ from sony_projector_protocol.types import ProjectorIdentity
 __all__ = [
     "ADCP_PICTURE_MODE_LABELS",
     "ADCP_PICTURE_MODE_VALUES",
+    "ADCP_COLOR_SPACE_LABELS",
+    "ADCP_COLOR_SPACE_VALUES",
+    "ADCP_INPUT_VALUES",
     "CAPABILITIES_BY_SERIES",
     "DEFAULT_SDCP_COMMUNITY",
     "DiscoveredProjector",
+    "FEATURE_ADCP_COLOR_SPACE",
+    "FEATURE_ADCP_INPUT",
     "FEATURE_ADCP_PICTURE_MODE",
     "FEATURE_SDCP_CALIBRATION_PRESET",
+    "FEATURE_SDCP_COLOR_SPACE",
+    "FEATURE_SDCP_INPUT",
     "FeatureSupport",
     "MODEL_TO_SERIES",
     "PROTOCOL_ADCP",
@@ -48,6 +57,8 @@ __all__ = [
     "PackageUnsupportedCommandError",
     "ProjectorUnsupportedCommandError",
     "SDCP_CALIBRATION_PRESET_VALUES",
+    "SDCP_COLOR_SPACE_VALUES",
+    "SDCP_INPUT_VALUES",
     "SERIES_BY_KEY",
     "SeriesCapabilities",
     "UnsupportedCommandError",

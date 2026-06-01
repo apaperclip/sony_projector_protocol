@@ -4,7 +4,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "sony-projector-protocol"
-version = "0.3.0"
+version = "0.3.1"
 authors = [
     {name = "Sony Projector Protocol Contributors"},
 ]
@@ -29,9 +29,9 @@ test = [
 ]
 
 [project.urls]
-Documentation = "https://github.com/sony-projector-protocol/sony-projector-protocol#readme"
-Source = "https://github.com/sony-projector-protocol/sony-projector-protocol"
-Tracker = "https://github.com/sony-projector-protocol/sony-projector-protocol/issues"
+Documentation = "https://github.com/apaperclip/sony_projector_protocol/blob/main/README.md"
+Source = "https://github.com/apaperclip/sony_projector_protocol"
+Tracker = "https://github.com/apaperclip/sony_projector_protocol/issues"
 
 [tool.flit.module]
 name = "sony_projector_protocol"

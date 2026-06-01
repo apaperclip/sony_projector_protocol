@@ -162,9 +162,9 @@ This lets upstream applications create optional entities for advanced calls and 
 
 ## Command Areas
 
-Protocol-neutral methods include power, input, lamp control, aspect ratio, HDR, HDMI dynamic range, identity, and MAC address where the selected protocol supports them.
+Protocol-neutral methods include power, input, lamp control, aspect ratio, color space, HDR, HDMI dynamic range, identity, and MAC address where the selected protocol supports them.
 
-ADCP-specific methods include signal, temperature, timer, picture mode, warning/error details, version, and ADCP-only setters such as color space.
+ADCP-specific methods include signal, temperature, timer, picture mode, warning/error details, and version.
 
 SDCP-specific methods include calibration preset, color temperature, contrast enhancer, advanced iris, gamma correction, picture muting, motionflow, 2D/3D controls, picture position, reality creation, input lag reduction, menu position, error status, installation location, and lamp timer.
 

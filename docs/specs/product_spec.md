@@ -119,6 +119,8 @@ Template package names should not appear in distributed metadata or documentatio
   https://pro.sony/s3/2018/07/19110324/Sony_Protocol-Manual_1st-Edition-Revised-1.pdf
 - Sony supported command list: model command support and default ports.
   https://pro.sony/s3/2018/07/19110602/Sony_Protocol-Manual_Supported-Command-List_1st-Edition-Revised-1.pdf
+- Sony video projector supported command list: model command support for current ADCP video-projector series.
+  https://www.sony.com/electronics/support/res/manuals/9932/68bf8c3b38750c56cb60dcb8f1dfa909/99327615M.pdf
 - SDCP package reference implementation.
   https://github.com/kennymc-c/pySDCP-extended
 - ADCP Home Assistant implementation reference.
