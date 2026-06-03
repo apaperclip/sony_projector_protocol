@@ -13,9 +13,13 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from sony_projector_protocol import (FEATURE_ADCP_PICTURE_MODE, PROTOCOL_ADCP,
-                                     get_adcp_picture_mode_options,
-                                     get_feature_values, get_projector_series)
+from sony_projector_protocol import (
+    FEATURE_ADCP_PICTURE_MODE,
+    PROTOCOL_ADCP,
+    get_adcp_picture_mode_options,
+    get_feature_values,
+    get_projector_series,
+)
 from sony_projector_protocol.adcp import AdcpClient
 
 

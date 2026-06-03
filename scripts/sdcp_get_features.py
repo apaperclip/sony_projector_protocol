@@ -14,9 +14,12 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from sony_projector_protocol import (FEATURE_SDCP_CALIBRATION_PRESET,
-                                     PROTOCOL_SDCP, get_feature_values,
-                                     get_projector_series)
+from sony_projector_protocol import (
+    FEATURE_SDCP_CALIBRATION_PRESET,
+    PROTOCOL_SDCP,
+    get_feature_values,
+    get_projector_series,
+)
 from sony_projector_protocol.sdcp import SdcpClient
 
 ACTION_GET = 0x01

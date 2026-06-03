@@ -455,7 +455,11 @@ _SERIES_DEFINITIONS = (
         family="video",
         display_name="VW760ES",
         models=("VPL-VW745", "VPL-VW768", "VPL-VW760ES", "VPL-VW885ES"),
-        features=(_adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS), _adcp_picture_modes(*_VIDEO_LEGACY_USER_MODES), _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES)),
+        features=(
+            _adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS),
+            _adcp_picture_modes(*_VIDEO_LEGACY_USER_MODES),
+            _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES),
+        ),
         notes=("Supports user instead of user1/user2/user3/cinema_digital.",),
     ),
     _series_definition(
@@ -464,7 +468,11 @@ _SERIES_DEFINITIONS = (
         family="video",
         display_name="VW675ES",
         models=("VPL-VW535", "VPL-VW550ES", "VPL-VW558", "VPL-VW675ES"),
-        features=(_adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS), _adcp_picture_modes(*_VIDEO_LEGACY_USER_MODES), _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES)),
+        features=(
+            _adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS),
+            _adcp_picture_modes(*_VIDEO_LEGACY_USER_MODES),
+            _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES),
+        ),
     ),
     _series_definition(
         protocol=PROTOCOL_ADCP,
@@ -472,7 +480,11 @@ _SERIES_DEFINITIONS = (
         family="video",
         display_name="VW665ES",
         models=("VPL-VW515ES", "VPL-VW520ES", "VPL-VW528", "VPL-VW665ES"),
-        features=(_adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS), _adcp_picture_modes(*_VIDEO_LEGACY_USER_MODES), _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES)),
+        features=(
+            _adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS),
+            _adcp_picture_modes(*_VIDEO_LEGACY_USER_MODES),
+            _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES),
+        ),
     ),
     _series_definition(
         protocol=PROTOCOL_ADCP,
@@ -480,7 +492,11 @@ _SERIES_DEFINITIONS = (
         family="video",
         display_name="VW365ES",
         models=("VPL-VW315ES", "VPL-VW320ES", "VPL-VW328", "VPL-VW365ES"),
-        features=(_adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS), _adcp_picture_modes(*_VIDEO_LEGACY_USER_MODES), _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES)),
+        features=(
+            _adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS),
+            _adcp_picture_modes(*_VIDEO_LEGACY_USER_MODES),
+            _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES),
+        ),
     ),
     _series_definition(
         protocol=PROTOCOL_ADCP,
@@ -488,7 +504,11 @@ _SERIES_DEFINITIONS = (
         family="video",
         display_name="VW360ES",
         models=("VPL-VW360ES", "VPL-VW368", "VPL-VW385ES"),
-        features=(_adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS), _adcp_picture_modes(*_VIDEO_LEGACY_USER_MODES), _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES)),
+        features=(
+            _adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS),
+            _adcp_picture_modes(*_VIDEO_LEGACY_USER_MODES),
+            _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES),
+        ),
     ),
     _series_definition(
         protocol=PROTOCOL_ADCP,
@@ -496,7 +516,11 @@ _SERIES_DEFINITIONS = (
         family="video",
         display_name="VW260ES",
         models=("VPL-VW245", "VPL-VW260ES", "VPL-VW268", "VPL-VW285ES"),
-        features=(_adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS), _adcp_picture_modes(*_VIDEO_LEGACY_USER_MODES), _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES)),
+        features=(
+            _adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS),
+            _adcp_picture_modes(*_VIDEO_LEGACY_USER_MODES),
+            _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES),
+        ),
     ),
     _series_definition(
         protocol=PROTOCOL_ADCP,
@@ -504,7 +528,11 @@ _SERIES_DEFINITIONS = (
         family="video",
         display_name="VZ1000",
         models=("VPL-VZ1000", "VPL-VZ1000ES"),
-        features=(_adcp_inputs(*ADCP_VIDEO_VZ1000_INPUTS), _adcp_picture_modes(*_VIDEO_LEGACY_USER_MODES), _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES)),
+        features=(
+            _adcp_inputs(*ADCP_VIDEO_VZ1000_INPUTS),
+            _adcp_picture_modes(*_VIDEO_LEGACY_USER_MODES),
+            _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES),
+        ),
     ),
     _series_definition(
         protocol=PROTOCOL_ADCP,
@@ -512,7 +540,11 @@ _SERIES_DEFINITIONS = (
         family="video",
         display_name="HW65ES",
         models=("VPL-HW60ES", "VPL-HW65ES", "VPL-HW68", "VPL-HW69", "VPL-HW79"),
-        features=(_adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS), _adcp_picture_modes(*_VIDEO_LEGACY_USER_MODES), _adcp_color_spaces(*_VIDEO_HW65ES_COLOR_SPACES)),
+        features=(
+            _adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS),
+            _adcp_picture_modes(*_VIDEO_LEGACY_USER_MODES),
+            _adcp_color_spaces(*_VIDEO_HW65ES_COLOR_SPACES),
+        ),
     ),
     _series_definition(
         protocol=PROTOCOL_ADCP,
@@ -520,7 +552,11 @@ _SERIES_DEFINITIONS = (
         family="video",
         display_name="HW45ES",
         models=("VPL-HW45ES", "VPL-HW48", "VPL-HW49"),
-        features=(_adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS), _adcp_picture_modes(*_VIDEO_LEGACY_USER_MODES), _adcp_color_spaces(*_VIDEO_HW45ES_COLOR_SPACES)),
+        features=(
+            _adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS),
+            _adcp_picture_modes(*_VIDEO_LEGACY_USER_MODES),
+            _adcp_color_spaces(*_VIDEO_HW45ES_COLOR_SPACES),
+        ),
     ),
     _series_definition(
         protocol=PROTOCOL_ADCP,
@@ -537,7 +573,11 @@ _SERIES_DEFINITIONS = (
             "VPL-VW890ES",
             "VPL-VW1025ES",
         ),
-        features=(_adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS), _adcp_picture_modes(*_VIDEO_LEGACY_USER_MODES), _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES)),
+        features=(
+            _adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS),
+            _adcp_picture_modes(*_VIDEO_LEGACY_USER_MODES),
+            _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES),
+        ),
     ),
     _series_definition(
         protocol=PROTOCOL_ADCP,
@@ -545,7 +585,11 @@ _SERIES_DEFINITIONS = (
         family="video",
         display_name="VW570ES",
         models=("VPL-VW555", "VPL-VW570ES", "VPL-VW578", "VPL-VW695ES"),
-        features=(_adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS), _adcp_picture_modes(*_VIDEO_LEGACY_USER_MODES), _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES)),
+        features=(
+            _adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS),
+            _adcp_picture_modes(*_VIDEO_LEGACY_USER_MODES),
+            _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES),
+        ),
     ),
     _series_definition(
         protocol=PROTOCOL_ADCP,
@@ -562,7 +606,11 @@ _SERIES_DEFINITIONS = (
             "VPL-VW290ES",
             "VPL-VW325ES",
         ),
-        features=(_adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS), _adcp_picture_modes(*_VIDEO_LEGACY_USER_MODES), _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES)),
+        features=(
+            _adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS),
+            _adcp_picture_modes(*_VIDEO_LEGACY_USER_MODES),
+            _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES),
+        ),
     ),
     _series_definition(
         protocol=PROTOCOL_ADCP,
@@ -570,7 +618,11 @@ _SERIES_DEFINITIONS = (
         family="video",
         display_name="VW790ES",
         models=("VPL-VW775", "VPL-VW790ES", "VPL-VW798", "VPL-VW915ES"),
-        features=(_adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS), _adcp_picture_modes(*_VIDEO_LEGACY_USER_MODES), _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES)),
+        features=(
+            _adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS),
+            _adcp_picture_modes(*_VIDEO_LEGACY_USER_MODES),
+            _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES),
+        ),
     ),
     _series_definition(
         protocol=PROTOCOL_ADCP,
@@ -578,7 +630,11 @@ _SERIES_DEFINITIONS = (
         family="video",
         display_name="VW590ES",
         models=("VPL-VW575ES", "VPL-VW590ES", "VPL-VW598ES", "VPL-VW715ES"),
-        features=(_adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS), _adcp_picture_modes(*_VIDEO_LEGACY_USER_MODES), _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES)),
+        features=(
+            _adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS),
+            _adcp_picture_modes(*_VIDEO_LEGACY_USER_MODES),
+            _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES),
+        ),
     ),
     _series_definition(
         protocol=PROTOCOL_ADCP,
@@ -586,7 +642,11 @@ _SERIES_DEFINITIONS = (
         family="video",
         display_name="XW7000",
         models=("VPL-XW7000",),
-        features=(_adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS), _adcp_picture_modes(*_VIDEO_XW_MODES), _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES)),
+        features=(
+            _adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS),
+            _adcp_picture_modes(*_VIDEO_XW_MODES),
+            _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES),
+        ),
         notes=("Supports user1 and user3; does not support user, user2, or cinema_digital.",),
     ),
     _series_definition(
@@ -595,7 +655,11 @@ _SERIES_DEFINITIONS = (
         family="video",
         display_name="XW6000",
         models=("VPL-XW6000",),
-        features=(_adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS), _adcp_picture_modes(*_VIDEO_XW_MODES), _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES)),
+        features=(
+            _adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS),
+            _adcp_picture_modes(*_VIDEO_XW_MODES),
+            _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES),
+        ),
         notes=("Supports user1 and user3; does not support user, user2, or cinema_digital.",),
     ),
     _series_definition(
@@ -604,7 +668,11 @@ _SERIES_DEFINITIONS = (
         family="video",
         display_name="XW5000",
         models=("VPL-XW5000",),
-        features=(_adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS), _adcp_picture_modes(*_VIDEO_XW_MODES), _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES)),
+        features=(
+            _adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS),
+            _adcp_picture_modes(*_VIDEO_XW_MODES),
+            _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES),
+        ),
         notes=("Supports user1 and user3; does not support user, user2, or cinema_digital.",),
     ),
     _series_definition(
@@ -613,7 +681,11 @@ _SERIES_DEFINITIONS = (
         family="video",
         display_name="XW8100",
         models=("VPL-XW8100",),
-        features=(_adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS), _adcp_picture_modes(*_VIDEO_XW_MODES), _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES)),
+        features=(
+            _adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS),
+            _adcp_picture_modes(*_VIDEO_XW_MODES),
+            _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES),
+        ),
         notes=("Supports user1 and user3; does not support user, user2, or cinema_digital.",),
     ),
     _series_definition(
@@ -622,7 +694,11 @@ _SERIES_DEFINITIONS = (
         family="video",
         display_name="XW6100",
         models=("VPL-XW6100",),
-        features=(_adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS), _adcp_picture_modes(*_VIDEO_XW_MODES), _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES)),
+        features=(
+            _adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS),
+            _adcp_picture_modes(*_VIDEO_XW_MODES),
+            _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES),
+        ),
         notes=("Supports user1 and user3; does not support user, user2, or cinema_digital.",),
     ),
     _series_definition(
@@ -631,7 +707,11 @@ _SERIES_DEFINITIONS = (
         family="video",
         display_name="XW5100",
         models=("VPL-XW5100",),
-        features=(_adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS), _adcp_picture_modes(*_VIDEO_XW_MODES), _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES)),
+        features=(
+            _adcp_inputs(*ADCP_VIDEO_COMMON_INPUTS),
+            _adcp_picture_modes(*_VIDEO_XW_MODES),
+            _adcp_color_spaces(*ADCP_VIDEO_MODERN_COLOR_SPACES),
+        ),
         notes=("Supports user1 and user3; does not support user, user2, or cinema_digital.",),
     ),
     # Data projector series columns.
@@ -676,7 +756,11 @@ _SERIES_DEFINITIONS = (
             "VPL-F630HZ",
             "VPL-F630WZ",
         ),
-        features=(_adcp_inputs(*_DATA_INSTALLATION_INPUTS), _adcp_picture_modes(*_DATA_INSTALLATION_MODES), _adcp_color_spaces(*ADCP_DATA_COLOR_SPACES)),
+        features=(
+            _adcp_inputs(*_DATA_INSTALLATION_INPUTS),
+            _adcp_picture_modes(*_DATA_INSTALLATION_MODES),
+            _adcp_color_spaces(*ADCP_DATA_COLOR_SPACES),
+        ),
     ),
     _series_definition(
         protocol=PROTOCOL_ADCP,
@@ -684,7 +768,11 @@ _SERIES_DEFINITIONS = (
         family="data",
         display_name="FH60/FW60/F530H/F630H/F630W/F530W",
         models=("VPL-FH60", "VPL-FH65", "VPL-FW60", "VPL-FW65", "VPL-F530H", "VPL-F630H", "VPL-F630W", "VPL-F530W"),
-        features=(_adcp_inputs(*_DATA_INSTALLATION_INPUTS), _adcp_picture_modes(*_DATA_INSTALLATION_MODES), _adcp_color_spaces(*ADCP_DATA_COLOR_SPACES)),
+        features=(
+            _adcp_inputs(*_DATA_INSTALLATION_INPUTS),
+            _adcp_picture_modes(*_DATA_INSTALLATION_MODES),
+            _adcp_color_spaces(*ADCP_DATA_COLOR_SPACES),
+        ),
     ),
     _series_definition(
         protocol=PROTOCOL_ADCP,
@@ -692,7 +780,10 @@ _SERIES_DEFINITIONS = (
         family="data",
         display_name="FHZ700/F700HZ",
         models=("VPL-FHZ700L", "VPL-F720HZL", "VPL-F725HZL"),
-        features=(_adcp_inputs(*_DATA_ANALOG_DIGITAL_INPUTS), _adcp_picture_modes(*ADCP_DATA_BASE_PICTURE_MODES, "brt_priority", "presentation")),
+        features=(
+            _adcp_inputs(*_DATA_ANALOG_DIGITAL_INPUTS),
+            _adcp_picture_modes(*ADCP_DATA_BASE_PICTURE_MODES, "brt_priority", "presentation"),
+        ),
     ),
     _series_definition(
         protocol=PROTOCOL_ADCP,
@@ -765,7 +856,17 @@ _SERIES_DEFINITIONS = (
         key="adcp_data_s600",
         family="data",
         display_name="S600",
-        models=("VPL-SW525", "VPL-SW535", "VPL-SW536", "VPL-SW630", "VPL-SW631", "VPL-SX535", "VPL-SX536", "VPL-SX630", "VPL-SX631"),
+        models=(
+            "VPL-SW525",
+            "VPL-SW535",
+            "VPL-SW536",
+            "VPL-SW630",
+            "VPL-SW631",
+            "VPL-SX535",
+            "VPL-SX536",
+            "VPL-SX630",
+            "VPL-SX631",
+        ),
         features=(_adcp_inputs(*_DATA_BUSINESS_INPUTS), _adcp_picture_modes(*_DATA_EDUCATION_SRGB_MODES)),
     ),
     _series_definition(
@@ -774,7 +875,11 @@ _SERIES_DEFINITIONS = (
         family="data",
         display_name="P10/P500",
         models=("VPL-PHZ10", "VPL-PWZ10", "VPL-PXZ10", "VPL-P500HZ", "VPL-P500WZ", "VPL-P500XZ"),
-        features=(_adcp_inputs(*_DATA_BUSINESS_HDMI2_INPUTS), _adcp_picture_modes(*_DATA_PRESENTATION_MODES), _adcp_color_spaces(*ADCP_DATA_COLOR_SPACES)),
+        features=(
+            _adcp_inputs(*_DATA_BUSINESS_HDMI2_INPUTS),
+            _adcp_picture_modes(*_DATA_PRESENTATION_MODES),
+            _adcp_color_spaces(*ADCP_DATA_COLOR_SPACES),
+        ),
     ),
     _series_definition(
         protocol=PROTOCOL_ADCP,
@@ -782,7 +887,11 @@ _SERIES_DEFINITIONS = (
         family="data",
         display_name="U300",
         models=("VPL-U300WZ",),
-        features=(_adcp_inputs("rgb1", "hdmi1", "hdbaset1"), _adcp_picture_modes(*_DATA_PRESENTATION_MODES), _adcp_color_spaces(*ADCP_DATA_COLOR_SPACES)),
+        features=(
+            _adcp_inputs("rgb1", "hdmi1", "hdbaset1"),
+            _adcp_picture_modes(*_DATA_PRESENTATION_MODES),
+            _adcp_color_spaces(*ADCP_DATA_COLOR_SPACES),
+        ),
     ),
 )
 
@@ -837,9 +946,7 @@ def get_projector_series(model: str, *, protocol: str | None = None) -> Projecto
         return SERIES_BY_KEY.get(series_key)
 
     matches = {
-        series_key
-        for (_protocol, model_name), series_key in MODEL_TO_SERIES.items()
-        if model_name == normalized_model
+        series_key for (_protocol, model_name), series_key in MODEL_TO_SERIES.items() if model_name == normalized_model
     }
     if len(matches) != 1:
         return None

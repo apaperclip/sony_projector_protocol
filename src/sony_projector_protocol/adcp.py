@@ -6,13 +6,15 @@ import asyncio
 import hashlib
 import json
 
-from sony_projector_protocol.capabilities import (ADCP_COLOR_SPACE_VALUES,
-                                                  ADCP_INPUT_VALUES,
-                                                  ADCP_PICTURE_MODE_VALUES)
+from sony_projector_protocol.capabilities import ADCP_COLOR_SPACE_VALUES, ADCP_INPUT_VALUES, ADCP_PICTURE_MODE_VALUES
 from sony_projector_protocol.exceptions import (
-    PackageUnsupportedCommandError, ProjectorAuthenticationError,
-    ProjectorConnectionError, ProjectorProtocolError,
-    ProjectorUnsupportedCommandError, UnsupportedCommandError)
+    PackageUnsupportedCommandError,
+    ProjectorAuthenticationError,
+    ProjectorConnectionError,
+    ProjectorProtocolError,
+    ProjectorUnsupportedCommandError,
+    UnsupportedCommandError,
+)
 from sony_projector_protocol.transport import StreamTransport, Transport
 from sony_projector_protocol.types import ProjectorIdentity
 
@@ -23,9 +25,7 @@ _POWER_TO_DEVICE = {
     False: "off",
 }
 
-_INPUT_TO_DEVICE = {
-    value: value for value in ADCP_INPUT_VALUES
-}
+_INPUT_TO_DEVICE = {value: value for value in ADCP_INPUT_VALUES}
 
 _INPUT_FROM_DEVICE = {value: key for key, value in _INPUT_TO_DEVICE.items()}
 

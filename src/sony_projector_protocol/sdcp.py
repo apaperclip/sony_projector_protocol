@@ -6,8 +6,10 @@ from dataclasses import dataclass
 from struct import pack_into, unpack
 
 from sony_projector_protocol.exceptions import (
-    PackageUnsupportedCommandError, ProjectorProtocolError,
-    ProjectorUnsupportedCommandError)
+    PackageUnsupportedCommandError,
+    ProjectorProtocolError,
+    ProjectorUnsupportedCommandError,
+)
 from sony_projector_protocol.transport import StreamTransport, Transport
 from sony_projector_protocol.types import ProjectorIdentity
 

@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 from sony_projector_protocol.adcp import AdcpClient
-from sony_projector_protocol.exceptions import (PackageUnsupportedCommandError,
-                                                ProjectorConnectionError)
+from sony_projector_protocol.exceptions import PackageUnsupportedCommandError, ProjectorConnectionError
 from sony_projector_protocol.sdcp import DEFAULT_SDCP_COMMUNITY, SdcpClient
 from sony_projector_protocol.transport import Transport
 from sony_projector_protocol.types import ProjectorIdentity

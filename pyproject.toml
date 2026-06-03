@@ -4,7 +4,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "sony-projector-protocol"
-version = "0.3.1"
+version = "0.3.2"
 authors = [
     {name = "Sony Projector Protocol Contributors"},
 ]
@@ -27,6 +27,14 @@ test = [
     "pytest>=7.3.1",
     "pytest-github-actions-annotate-failures",
 ]
+dev = [
+    "black>=24.0",
+    "isort>=5.12",
+    "pre-commit>=3.0",
+    "pytest-cov==4.0.0",
+    "pytest>=7.3.1",
+    "pytest-github-actions-annotate-failures",
+]
 
 [project.urls]
 Documentation = "https://github.com/apaperclip/sony_projector_protocol/blob/main/README.md"
@@ -38,6 +46,13 @@ name = "sony_projector_protocol"
 
 [tool.black]
 line-length = 120
+target-version = ["py311", "py312"]
+
+[tool.isort]
+profile = "black"
+line_length = 120
+src_paths = ["src", "tests", "scripts"]
+add_imports = ["from __future__ import annotations"]
 
 [tool.coverage.run]
 branch = true
