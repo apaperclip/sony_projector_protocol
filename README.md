@@ -103,6 +103,39 @@ print(identity.mac_address)
 
 SDCP identity reads model name, serial number, installation location, and MAC address. ADCP identity reads model name, serial number, and MAC address; installation location is returned as `None` because the ADCP command set does not expose it.
 
+## Model Capability Helpers
+
+The package includes static capability helpers for integrations that need setup-time option lists. Feature keys are protocol-specific because Sony ADCP and SDCP commands use different names, encodings, and support tables. ADCP option lists are model-aware and use Sony's model-to-series command-list mappings. SDCP currently exposes package-supported option lists through a generic SDCP fallback for any model returned by identity.
+
+```python
+from sony_projector_protocol import (
+    FEATURE_ADCP_PICTURE_MODE,
+    FEATURE_SDCP_CALIBRATION_PRESET,
+    PROTOCOL_ADCP,
+    PROTOCOL_SDCP,
+    get_adcp_picture_mode_options,
+    get_feature_values,
+)
+
+identity = await projector.get_identity()
+model = identity.model or ""
+
+options = get_adcp_picture_mode_options(model)
+# Equivalent:
+options = get_feature_values(model, FEATURE_ADCP_PICTURE_MODE, protocol=PROTOCOL_ADCP)
+
+if options is None:
+    # Unknown model or unsupported feature. Do not create the select entity,
+    # mark it unavailable, or use an integration-level override.
+    return
+
+print(options)
+```
+
+Use returned values as command values for methods such as `set_picture_mode` or `set_calibration_preset`. ADCP capability data is organized as model-to-series mappings and series-to-feature mappings, matching Sony's supported command lists. Unknown or unlisted ADCP models return `None` so integrations can omit the entity, disable it, or apply their own override policy. SDCP calibration preset lookup returns the package-supported values for any model string when the `sdcp` protocol is requested, but the projector may still reject the command at runtime.
+
+See [Home Assistant Integration Examples](docs/home_assistant_examples.md) for select-entity usage rules and [Developer Guide](docs/developer.md) for adding new capability data.
+
 ## Unsupported Commands
 
 Projector features vary by model and protocol. Unsupported requests raise `UnsupportedCommandError`.
@@ -129,11 +162,13 @@ This lets upstream applications create optional entities for advanced calls and 
 
 ## Command Areas
 
-Protocol-neutral methods include power, input, lamp control, aspect ratio, HDR, HDMI dynamic range, identity, and MAC address where the selected protocol supports them.
+Protocol-neutral methods include power, input, lamp control, aspect ratio, color space, HDR, HDMI dynamic range, identity, and MAC address where the selected protocol supports them.
 
-ADCP-specific methods include signal, temperature, timer, picture mode, warning/error details, version, and ADCP-only setters such as color space.
+ADCP-specific methods include signal, temperature, timer, picture mode, warning/error details, and version.
 
 SDCP-specific methods include calibration preset, color temperature, contrast enhancer, advanced iris, gamma correction, picture muting, motionflow, 2D/3D controls, picture position, reality creation, input lag reduction, menu position, error status, installation location, and lamp timer.
+
+See [Command Matrix](docs/command_matrix.md) for the current method support table.
 
 ## Development
 
@@ -142,3 +177,11 @@ Run the offline unit tests with:
 ```bash
 pytest
 ```
+
+More project docs:
+
+- [Home Assistant Integration Examples](docs/home_assistant_examples.md)
+- [Command Matrix](docs/command_matrix.md)
+- [Developer Guide](docs/developer.md)
+- [Captured Session Test Plan](docs/captured_sessions.md)
+- [Release Checklist](docs/release_checklist.md)

@@ -6,8 +6,10 @@ from dataclasses import dataclass
 from struct import pack_into, unpack
 
 from sony_projector_protocol.exceptions import (
-    PackageUnsupportedCommandError, ProjectorProtocolError,
-    ProjectorUnsupportedCommandError)
+    PackageUnsupportedCommandError,
+    ProjectorProtocolError,
+    ProjectorUnsupportedCommandError,
+)
 from sony_projector_protocol.transport import StreamTransport, Transport
 from sony_projector_protocol.types import ProjectorIdentity
 
@@ -56,9 +58,11 @@ _POWER_COOLING2 = 0x0005
 _INPUT_TO_DEVICE = {
     "hdmi1": 0x0002,
     "hdmi2": 0x0003,
+    "hdmi_1": 0x0002,
+    "hdmi_2": 0x0003,
 }
 
-_INPUT_FROM_DEVICE = {value: key for key, value in _INPUT_TO_DEVICE.items()}
+_INPUT_FROM_DEVICE = {0x0002: "hdmi1", 0x0003: "hdmi2"}
 
 
 def _invert(mapping: dict[int, str]) -> dict[str, int]:
@@ -121,6 +125,14 @@ _PICTURE_POSITION_FROM_DEVICE = {
     0x0005: "custom_4",
     0x0006: "custom_5",
 }
+_COLOR_SPACE_FROM_DEVICE = {
+    0x0000: "bt709",
+    0x0003: "color_space1",
+    0x0004: "color_space2",
+    0x0005: "color_space3",
+    0x0006: "custom",
+    0x0008: "bt2020",
+}
 _DYNAMIC_RANGE_FROM_DEVICE = {0x0000: "auto", 0x0001: "limited", 0x0002: "full"}
 _HDR_FROM_DEVICE = {0x0000: "off", 0x0001: "on", 0x0002: "auto"}
 _MENU_POSITION_FROM_DEVICE = {0x0000: "bottom_left", 0x0001: "center"}
@@ -145,6 +157,11 @@ _MOTIONFLOW_TO_DEVICE = _invert(_MOTIONFLOW_FROM_DEVICE)
 _DISPLAY_SELECT_TO_DEVICE = _invert(_DISPLAY_SELECT_FROM_DEVICE)
 _THREE_D_FORMAT_TO_DEVICE = _invert(_THREE_D_FORMAT_FROM_DEVICE)
 _PICTURE_POSITION_TO_DEVICE = _invert(_PICTURE_POSITION_FROM_DEVICE)
+_COLOR_SPACE_TO_DEVICE = _invert(_COLOR_SPACE_FROM_DEVICE) | {
+    "color_space_1": 0x0003,
+    "color_space_2": 0x0004,
+    "color_space_3": 0x0005,
+}
 _DYNAMIC_RANGE_TO_DEVICE = _invert(_DYNAMIC_RANGE_FROM_DEVICE)
 _HDR_TO_DEVICE = _invert(_HDR_FROM_DEVICE)
 _MENU_POSITION_TO_DEVICE = _invert(_MENU_POSITION_FROM_DEVICE)
@@ -222,7 +239,7 @@ class SdcpClient:
         return _INPUT_FROM_DEVICE.get(data, f"0x{data:04x}")
 
     async def set_input(self, value: str) -> None:
-        input_value = value.lower()
+        input_value = _normalize_value(value)
         if input_value not in _INPUT_TO_DEVICE:
             raise PackageUnsupportedCommandError(f"Unsupported SDCP input: {value}")
         await self._command(_ACTION_SET, _COMMAND_INPUT, _INPUT_TO_DEVICE[input_value])
@@ -256,6 +273,9 @@ class SdcpClient:
 
     async def set_picture_position(self, value: str) -> None:
         await self._set_mapped(_COMMAND_PICTURE_POSITION, value, _PICTURE_POSITION_TO_DEVICE, "picture position")
+
+    async def set_color_space(self, value: str) -> None:
+        await self._set_mapped(_COMMAND_COLOR_SPACE, value, _COLOR_SPACE_TO_DEVICE, "color space")
 
     async def set_hdmi1_dynamic_range(self, value: str) -> None:
         await self._set_mapped(_COMMAND_HDMI1_DYNAMIC_RANGE, value, _DYNAMIC_RANGE_TO_DEVICE, "HDMI 1 dynamic range")
@@ -297,7 +317,7 @@ class SdcpClient:
         return self._decode(await self._get(_COMMAND_PICTURE_MUTING), _ON_OFF_FROM_DEVICE)
 
     async def get_color_space(self) -> int | str:
-        return self._value_or_unknown(await self._get(_COMMAND_COLOR_SPACE))
+        return self._value_or_unknown(await self._get(_COMMAND_COLOR_SPACE), _COLOR_SPACE_FROM_DEVICE)
 
     async def get_motionflow(self) -> str:
         return self._decode(await self._get(_COMMAND_MOTIONFLOW), _MOTIONFLOW_FROM_DEVICE)
@@ -395,9 +415,11 @@ class SdcpClient:
             return "unknown"
         return value.split(b"\x00", 1)[0].decode("ascii", errors="replace").strip()
 
-    def _value_or_unknown(self, value: int | None) -> int | str:
+    def _value_or_unknown(self, value: int | None, mapping: dict[int, str] | None = None) -> int | str:
         if value is None:
             return "unknown"
+        if mapping is not None:
+            return mapping.get(value, value)
         return value
 
     async def _command(self, action: int, command: int, data: int | None = None) -> int | None:

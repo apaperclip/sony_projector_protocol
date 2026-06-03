@@ -12,6 +12,14 @@ sony_projector_protocol.adcp module
    :undoc-members:
    :show-inheritance:
 
+sony_projector_protocol.capabilities module
+-------------------------------------------
+
+.. automodule:: sony_projector_protocol.capabilities
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 sony_projector_protocol.discovery module
 ----------------------------------------
 

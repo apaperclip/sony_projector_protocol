@@ -28,9 +28,7 @@ Upstream applications must choose whether a projector should use ADCP or SDCP. T
 
 Acceptance criteria:
 
-- Remove `Protocol.AUTO` from the public protocol enum, or deprecate it with a clear validation error before release.
 - Require `Projector(..., protocol="adcp")` or `Projector(..., protocol="sdcp")`.
-- Remove `_probe_client()` and any fallback connection attempts across protocols.
 - Keep SDAP discovery focused on reporting discovered device metadata only.
 - Update README, product spec, and tests so no examples or assertions rely on automatic protocol detection.
 
@@ -89,7 +87,6 @@ Priority: Medium
 
 Acceptance criteria:
 
-- Remove unrelated optional extras such as `spark` unless there is a real package need.
 - Review project URLs, classifiers, test extras, and coverage settings for PyPI readiness.
 - Ensure `python -m build` or the chosen packaging command produces a clean distribution.
 - Add a short release checklist for TestPyPI/PyPI publication.
@@ -138,7 +135,8 @@ Acceptance criteria:
 - Mark commands as MVP, Version 0.2, or experimental. Done.
 - Confirm command names, item numbers, and value mappings against source references or captured sessions.
 - Add tests for any corrected mappings.
-- Do not maintain a model capability matrix; projector-level unsupported responses should raise `ProjectorUnsupportedCommandError` with response metadata.
+- Do not maintain a runtime capability cache. Static source-reference option data may be exposed for setup-time integration helpers, while projector-level unsupported responses should still raise `ProjectorUnsupportedCommandError` with response metadata.
+- Document current option-helper behavior: ADCP `picture_mode` is model-aware through official Sony series rows, and SDCP `calibration_preset` uses a generic protocol fallback for any returned model.
 
 ### 10. Add Captured-Session Replay Tests
 

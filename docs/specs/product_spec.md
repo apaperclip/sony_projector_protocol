@@ -48,6 +48,7 @@ The package must support:
 ### Version 0.2
 
 - Calibration preset / picture mode controls.
+- Static source-reference option helpers for setup-time integration decisions.
 - Picture mute / blanking controls.
 - Lamp or light source hours where supported.
 - Clear unsupported-command errors that upstream integrations can map to disabled or unavailable entities.
@@ -56,13 +57,11 @@ The package must support:
 ### Later
 
 - ADCP image adjustment controls:
-  - Contrast.
-  - Brightness.
-  - Sharpness.
-  - Light output.
+- Contrast.
+- Brightness.
+- Sharpness.
+- Light output.
 - Optional serial ADCP transport.
-- Optional command tables per projector family.
-- Persistent capability cache.
 - Diagnostics payload for Home Assistant issue reports.
 - Integration tests against captured projector sessions.
 
@@ -72,6 +71,7 @@ The package must support:
 - HDMI-CEC control.
 - Full Home Assistant custom component implementation inside this package.
 - Projector firmware updates.
+- Runtime or persistent capability cache; integrations should own cached decisions and user overrides.
 - Full UI or web application.
 
 ## Design Principles
@@ -79,6 +79,7 @@ The package must support:
 - Local first: never require internet at runtime.
 - Home Assistant friendly: async APIs, predictable exceptions, fast setup, no blocking network calls in public async methods.
 - Conservative control: expose advanced commands through explicit methods and raise `PackageUnsupportedCommandError` when the package or selected protocol cannot issue a request, and `ProjectorUnsupportedCommandError` when the projector rejects a request as unsupported or unavailable. Both inherit from `UnsupportedCommandError`. Projector response errors should expose the protocol, command, and raw or decoded projector response for troubleshooting.
+- Static capability data may expose source-reference option lists for setup-time integration helpers. ADCP option lists are model-aware where official Sony series mappings are available. SDCP may expose generic package-supported fallback option lists for a protocol-scoped feature, but projectors can still reject an item at runtime.
 - Protocol neutral API: callers should ask for `set_power(True)`, not build ADCP or SDCP packets.
 - Testable transports: all protocol clients must work with fake readers/writers or socket abstractions.
 
@@ -100,11 +101,11 @@ await projector.close()
 
 ## Package Name
 
-Recommended import package: `sony_projector_protocol`
+Import package: `sony_projector_protocol`
 
-Recommended distribution name: `sony-projector-protocol`
+Distribution name: `sony-projector-protocol`
 
-The current template package name (`python_package`) should be replaced before first TestPyPI publication.
+Template package names should not appear in distributed metadata or documentation.
 
 ## Runtime Compatibility
 
@@ -118,6 +119,8 @@ The current template package name (`python_package`) should be replaced before f
   https://pro.sony/s3/2018/07/19110324/Sony_Protocol-Manual_1st-Edition-Revised-1.pdf
 - Sony supported command list: model command support and default ports.
   https://pro.sony/s3/2018/07/19110602/Sony_Protocol-Manual_Supported-Command-List_1st-Edition-Revised-1.pdf
+- Sony video projector supported command list: model command support for current ADCP video-projector series.
+  https://www.sony.com/electronics/support/res/manuals/9932/68bf8c3b38750c56cb60dcb8f1dfa909/99327615M.pdf
 - SDCP package reference implementation.
   https://github.com/kennymc-c/pySDCP-extended
 - ADCP Home Assistant implementation reference.

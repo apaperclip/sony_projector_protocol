@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 from sony_projector_protocol.adcp import AdcpClient
-from sony_projector_protocol.exceptions import (PackageUnsupportedCommandError,
-                                                ProjectorConnectionError)
+from sony_projector_protocol.exceptions import PackageUnsupportedCommandError, ProjectorConnectionError
 from sony_projector_protocol.sdcp import DEFAULT_SDCP_COMMUNITY, SdcpClient
 from sony_projector_protocol.transport import Transport
 from sony_projector_protocol.types import ProjectorIdentity
@@ -162,7 +161,8 @@ class Projector:
         return await client.get_color_space()
 
     async def set_color_space(self, value: str) -> None:
-        await self._adcp_client().set_color_space(value)
+        client = self._connected_client()
+        await client.set_color_space(value)
 
     async def get_motionflow(self) -> str:
         return await self._sdcp_client().get_motionflow()

@@ -6,10 +6,15 @@ import asyncio
 import hashlib
 import json
 
+from sony_projector_protocol.capabilities import ADCP_COLOR_SPACE_VALUES, ADCP_INPUT_VALUES, ADCP_PICTURE_MODE_VALUES
 from sony_projector_protocol.exceptions import (
-    PackageUnsupportedCommandError, ProjectorAuthenticationError,
-    ProjectorConnectionError, ProjectorProtocolError,
-    ProjectorUnsupportedCommandError, UnsupportedCommandError)
+    PackageUnsupportedCommandError,
+    ProjectorAuthenticationError,
+    ProjectorConnectionError,
+    ProjectorProtocolError,
+    ProjectorUnsupportedCommandError,
+    UnsupportedCommandError,
+)
 from sony_projector_protocol.transport import StreamTransport, Transport
 from sony_projector_protocol.types import ProjectorIdentity
 
@@ -20,12 +25,16 @@ _POWER_TO_DEVICE = {
     False: "off",
 }
 
-_INPUT_TO_DEVICE = {
-    "hdmi1": "hdmi1",
-    "hdmi2": "hdmi2",
-}
+_INPUT_TO_DEVICE = {value: value for value in ADCP_INPUT_VALUES}
 
 _INPUT_FROM_DEVICE = {value: key for key, value in _INPUT_TO_DEVICE.items()}
+
+_PICTURE_MODE_TO_DEVICE = {value: value for value in ADCP_PICTURE_MODE_VALUES} | {
+    "bright_cinema": "brt_cinema",
+    "bright_tv": "brt_tv",
+}
+
+_COLOR_SPACE_TO_DEVICE = {value: value for value in ADCP_COLOR_SPACE_VALUES}
 
 
 class AdcpClient:
@@ -75,13 +84,15 @@ class AdcpClient:
         return await self._command("picture_mode ?")
 
     async def set_picture_mode(self, value: str) -> None:
-        await self._command(f"picture_mode {self._quoted(value)}")
+        picture_mode = self._mapped_value(value, _PICTURE_MODE_TO_DEVICE, "picture mode")
+        await self._command(f"picture_mode {self._quoted(picture_mode)}")
 
     async def get_color_space(self) -> str:
         return await self._command("color_space ?")
 
     async def set_color_space(self, value: str) -> None:
-        await self._command(f"color_space {self._quoted(value)}")
+        color_space = self._mapped_value(value, _COLOR_SPACE_TO_DEVICE, "color space")
+        await self._command(f"color_space {self._quoted(color_space)}")
 
     async def get_lamp_control(self) -> str:
         return await self._command("lamp_control ?")
@@ -140,8 +151,8 @@ class AdcpClient:
         return await self._command("mac_address ?")
 
     async def set_input(self, value: str) -> None:
-        input_value = _INPUT_TO_DEVICE.get(value.lower(), value)
-        await self._command(f"input {input_value}")
+        input_value = self._mapped_value(value, _INPUT_TO_DEVICE, "input")
+        await self._command(f"input {self._quoted(input_value)}")
 
     async def get_identity(self) -> ProjectorIdentity:
         model = await self._optional_command("modelname ?")
@@ -161,8 +172,27 @@ class AdcpClient:
             raise PackageUnsupportedCommandError(f"Unsupported dynamic range input: {input_name}")
         return normalized
 
+    def _mapped_value(self, value: str, mapping: dict[str, str], label: str) -> str:
+        normalized = value.strip().strip('"').lower().replace("-", "_").replace(" ", "_")
+        if normalized not in mapping:
+            raise PackageUnsupportedCommandError(f"Unsupported ADCP {label}: {value}")
+        return mapping[normalized]
+
     def _quoted(self, value: str) -> str:
         return value if value.startswith('"') and value.endswith('"') else f'"{value}"'
+
+    def _response_value(self, text: str) -> str:
+        if "=" in text:
+            return text.split("=", 1)[1].strip().strip('"')
+
+        parts = text.split(maxsplit=1)
+        if len(parts) == 2:
+            return parts[1].strip().strip('"')
+
+        return text.strip('"')
+
+    def _is_error_response(self, lowered: str) -> bool:
+        return lowered.startswith("ng") or (lowered.startswith("err") and not lowered.startswith("error"))
 
     async def _json_value_command(self, command: str, key: str) -> int | float | str:
         response = await self._command(command)
@@ -223,7 +253,7 @@ class AdcpClient:
     async def _command(self, command: str) -> str:
         payload = f"{command}\r\n".encode("ascii")
         raw = await self.transport.request(payload, timeout=self.timeout)
-        text = raw.decode("ascii", errors="replace").strip().strip('"')
+        text = raw.decode("ascii", errors="replace").strip()
         lowered = text.lower()
 
         if lowered in {"ok", "success"}:
@@ -236,12 +266,12 @@ class AdcpClient:
                 response=text,
             )
         if "=" in text:
-            return text.split("=", 1)[1].strip().strip('"')
-        if lowered.startswith("err") or lowered.startswith("ng"):
+            return self._response_value(text)
+        if self._is_error_response(lowered):
             raise ProjectorProtocolError(
                 f"ADCP command failed: {text}",
                 protocol="adcp",
                 command=command,
                 response=text,
             )
-        return text
+        return self._response_value(text)

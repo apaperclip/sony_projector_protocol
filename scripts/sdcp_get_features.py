@@ -6,10 +6,20 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import sys
 from dataclasses import dataclass
+from pathlib import Path
 from struct import unpack
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+from sony_projector_protocol import (
+    FEATURE_SDCP_CALIBRATION_PRESET,
+    PROTOCOL_SDCP,
+    get_feature_values,
+    get_projector_series,
+)
 from sony_projector_protocol.sdcp import SdcpClient
 
 ACTION_GET = 0x01
@@ -196,10 +206,47 @@ def decode_value(feature: Feature, value: int | None) -> str | None:
     return VALUE_MAPS[feature.value_map].get(value, f"0x{value:04x}")
 
 
+async def capability_snapshot(client: SdcpClient) -> dict[str, Any]:
+    try:
+        identity = await client.get_identity()
+    except Exception as exc:  # noqa: BLE001 - live probe should report capability lookup failures.
+        return {
+            "ok": False,
+            "error": f"{type(exc).__name__}: {exc}",
+        }
+
+    model = identity.model or ""
+    series = get_projector_series(model, protocol=PROTOCOL_SDCP)
+    calibration_preset_options = get_feature_values(
+        model,
+        FEATURE_SDCP_CALIBRATION_PRESET,
+        protocol=PROTOCOL_SDCP,
+    )
+
+    return {
+        "ok": True,
+        "model": model or None,
+        "series": series.__dict__ if series is not None else None,
+        "features": {
+            FEATURE_SDCP_CALIBRATION_PRESET: calibration_preset_options,
+        },
+    }
+
+
 async def probe(host: str, community: str, timeout: float, delay: float) -> dict[str, Any]:
     client = SdcpClient(host, timeout=timeout, community=community)
-    await client.connect()
     try:
+        await client.connect()
+    except Exception as exc:  # noqa: BLE001 - live probe should report startup failures as JSON.
+        return {
+            "host": host,
+            "community": community,
+            "ok": False,
+            "error": f"{type(exc).__name__}: {exc}",
+        }
+
+    try:
+        capabilities = await capability_snapshot(client)
         results = []
         for feature in FEATURES:
             request = client._create_command_buffer(ACTION_GET, feature.command)
@@ -230,7 +277,7 @@ async def probe(host: str, community: str, timeout: float, delay: float) -> dict
     finally:
         await client.close()
 
-    return {"host": host, "community": community, "features": results}
+    return {"host": host, "community": community, "ok": True, "capabilities": capabilities, "features": results}
 
 
 def main() -> None:

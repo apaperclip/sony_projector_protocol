@@ -2,6 +2,93 @@
 
 This matrix records the current public facade surface and whether each command is protocol-neutral or protocol-specific.
 
+## Feature Support By Protocol
+
+| Feature | ADCP | SDCP | Notes |
+| --- | --- | --- | --- |
+| Power | Yes | Yes | Protocol-neutral facade methods. |
+| Input | Yes | Yes | Protocol-neutral facade methods. |
+| Signal | Yes | No | ADCP-only read. |
+| Temperature | Yes | No | ADCP-only read. |
+| Timer / light source hours | Yes | Yes | ADCP uses `get_timer`; SDCP uses `get_lamp_timer`. |
+| Picture mode / calibration preset | Yes | Yes | Same user-facing concept, but protocol-specific command names and option helpers. |
+| Warning details | Yes | No | ADCP-only read. |
+| Error details / status | Yes | Yes | ADCP uses warning/error detail strings; SDCP uses error status. |
+| Model name | Yes | Yes | Included in identity helpers. |
+| Serial number | Yes | Yes | Included in identity helpers. |
+| Firmware / protocol version | Yes | No | ADCP-only read. |
+| MAC address | Yes | Yes | Included in identity helpers where supported. |
+| Installation location | No | Yes | SDCP-only identity field. |
+| Color temperature | No | Yes | SDCP-only read. |
+| Lamp control | Yes | Yes | Protocol-neutral facade methods. |
+| Contrast enhancer | No | Yes | SDCP-only control. |
+| Advanced iris | No | Yes | SDCP-only control. |
+| Aspect ratio | Yes | Yes | Protocol-neutral facade methods. |
+| Gamma correction | No | Yes | SDCP-only read. |
+| Picture muting | No | Yes | SDCP-only control. |
+| Color space | Yes | Yes | Both protocols support get/set through protocol-specific value encodings. |
+| Motionflow | No | Yes | SDCP-only control. |
+| 2D / 3D display select | No | Yes | SDCP-only control. |
+| 3D format | No | Yes | SDCP-only control. |
+| Picture position | No | Yes | SDCP-only control. |
+| Reality creation | No | Yes | SDCP-only read. |
+| HDMI 1 dynamic range | Yes | Yes | Protocol-neutral facade methods. |
+| HDMI 2 dynamic range | Yes | Yes | Protocol-neutral facade methods. |
+| HDR | Yes | Yes | Protocol-neutral facade methods. |
+| Input lag reduction | No | Yes | SDCP-only control. |
+| Menu position | No | Yes | SDCP-only control. |
+
+## Getter / Setter Coverage By Protocol
+
+| Feature | ADCP getter | ADCP setter | SDCP getter | SDCP setter |
+| --- | --- | --- | --- | --- |
+| Power | `get_power` | `set_power` | `get_power` | `set_power` |
+| Input | `get_input` | `set_input` | `get_input` | `set_input` |
+| Signal | `get_signal` | _None_ | _None_ | _None_ |
+| Temperature | `get_temperature` | _None_ | _None_ | _None_ |
+| Timer / light source hours | `get_timer` | _None_ | `get_lamp_timer` | _None_ |
+| Picture mode / calibration preset | `get_picture_mode` | `set_picture_mode` | `get_calibration_preset` | `set_calibration_preset` |
+| Warning details | `get_warning` | _None_ | _None_ | _None_ |
+| Error details / status | `get_error` | _None_ | `get_error_status` | _None_ |
+| Model name | `get_model_name` | _None_ | `get_model_name` | _None_ |
+| Serial number | `get_serial_number` | _None_ | `get_serial_number` | _None_ |
+| Firmware / protocol version | `get_version` | _None_ | _None_ | _None_ |
+| MAC address | `get_mac_address` | _None_ | `get_mac_address` | _None_ |
+| Installation location | _None_ | _None_ | `get_installation_location` | _None_ |
+| Color temperature | _None_ | _None_ | `get_color_temp` | _None_ |
+| Lamp control | `get_lamp_control` | `set_lamp_control` | `get_lamp_control` | `set_lamp_control` |
+| Contrast enhancer | _None_ | _None_ | `get_contrast_enhancer` | `set_contrast_enhancer` |
+| Advanced iris | _None_ | _None_ | `get_advanced_iris` | `set_advanced_iris` |
+| Aspect ratio | `get_aspect_ratio` | `set_aspect_ratio` | `get_aspect_ratio` | `set_aspect_ratio` |
+| Gamma correction | _None_ | _None_ | `get_gamma_correction` | _None_ |
+| Picture muting | _None_ | _None_ | `get_picture_muting` | `set_picture_muting` |
+| Color space | `get_color_space` | `set_color_space` | `get_color_space` | `set_color_space` |
+| Motionflow | _None_ | _None_ | `get_motionflow` | `set_motionflow` |
+| 2D / 3D display select | _None_ | _None_ | `get_2d_3d_display_select` | `set_2d_3d_display_select` |
+| 3D format | _None_ | _None_ | `get_3d_format` | `set_3d_format` |
+| Picture position | _None_ | _None_ | `get_picture_position` | `set_picture_position` |
+| Reality creation | _None_ | _None_ | `get_reality_creation` | _None_ |
+| HDMI 1 dynamic range | `get_hdmi1_dynamic_range` | `set_hdmi1_dynamic_range` | `get_hdmi1_dynamic_range` | `set_hdmi1_dynamic_range` |
+| HDMI 2 dynamic range | `get_hdmi2_dynamic_range` | `set_hdmi2_dynamic_range` | `get_hdmi2_dynamic_range` | `set_hdmi2_dynamic_range` |
+| HDR | `get_hdr` | `set_hdr` | `get_hdr` | `set_hdr` |
+| Input lag reduction | _None_ | _None_ | `get_input_lag_reduction` | `set_input_lag_reduction` |
+| Menu position | _None_ | _None_ | `get_menu_position` | `set_menu_position` |
+
+## Static Option Helpers
+
+Some commands need model-aware option lists before an integration creates a select entity.
+
+| Feature key | Protocol | Command methods | Lookup behavior |
+| --- | --- | --- | --- |
+| `FEATURE_ADCP_INPUT` | ADCP | `get_input`, `set_input` | Uses Sony model-to-series mappings. Unknown or unlisted ADCP models return `None`. |
+| `FEATURE_ADCP_PICTURE_MODE` | ADCP | `get_picture_mode`, `set_picture_mode` | Uses Sony model-to-series mappings. Unknown or unlisted ADCP models return `None`. |
+| `FEATURE_ADCP_COLOR_SPACE` | ADCP | `get_color_space`, `set_color_space` | Uses Sony model-to-series mappings. Unknown or unlisted ADCP models return `None`. |
+| `FEATURE_SDCP_INPUT` | SDCP | `get_input`, `set_input` | Uses the package-supported SDCP fallback for any returned model. Projectors may still reject unsupported values at runtime. |
+| `FEATURE_SDCP_CALIBRATION_PRESET` | SDCP | `get_calibration_preset`, `set_calibration_preset` | Uses the package-supported SDCP fallback for any returned model. Projectors may still reject unsupported values at runtime. |
+| `FEATURE_SDCP_COLOR_SPACE` | SDCP | `get_color_space`, `set_color_space` | Uses the package-supported SDCP fallback for any returned model. Projectors may still reject unsupported values at runtime. |
+
+Use `get_feature_values(model, feature, protocol=...)` for generic lookup, or `get_adcp_picture_mode_options(model)` for the ADCP picture-mode convenience helper. Do not reuse ADCP option lists for SDCP entities.
+
 ## Protocol-Neutral Facade Methods
 
 These methods are exposed on `Projector` for both protocols where the selected client supports the command:
@@ -14,7 +101,7 @@ These methods are exposed on `Projector` for both protocols where the selected c
 | `get_serial_number` | MVP |
 | `get_lamp_control`, `set_lamp_control` | Version 0.2 |
 | `get_aspect_ratio`, `set_aspect_ratio` | Version 0.2 |
-| `get_color_space` | Version 0.2 |
+| `get_color_space`, `set_color_space` | Version 0.2 |
 | `get_hdmi1_dynamic_range`, `set_hdmi1_dynamic_range` | Version 0.2 |
 | `get_hdmi2_dynamic_range`, `set_hdmi2_dynamic_range` | Version 0.2 |
 | `get_hdr`, `set_hdr` | Version 0.2 |
@@ -31,7 +118,6 @@ These methods are exposed on `Projector` for both protocols where the selected c
 | `get_warning` | Version 0.2 |
 | `get_error` | Version 0.2 |
 | `get_version` | Version 0.2 |
-| `set_color_space` | Version 0.2 |
 
 ## SDCP-Only Facade Methods
 

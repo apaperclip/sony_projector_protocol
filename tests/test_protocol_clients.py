@@ -8,11 +8,32 @@ from pathlib import Path
 
 import pytest
 
-from sony_projector_protocol import (DEFAULT_SDCP_COMMUNITY,
-                                     PackageUnsupportedCommandError, Projector,
-                                     ProjectorIdentity,
-                                     ProjectorUnsupportedCommandError,
-                                     discover, parse_sdap_packet)
+from sony_projector_protocol import (
+    DEFAULT_SDCP_COMMUNITY,
+    FEATURE_ADCP_COLOR_SPACE,
+    FEATURE_ADCP_INPUT,
+    FEATURE_ADCP_PICTURE_MODE,
+    FEATURE_SDCP_CALIBRATION_PRESET,
+    FEATURE_SDCP_COLOR_SPACE,
+    FEATURE_SDCP_INPUT,
+    PROTOCOL_ADCP,
+    PROTOCOL_SDCP,
+    SDCP_CALIBRATION_PRESET_VALUES,
+    SDCP_COLOR_SPACE_VALUES,
+    SDCP_INPUT_VALUES,
+    SERIES_BY_KEY,
+    PackageUnsupportedCommandError,
+    Projector,
+    ProjectorIdentity,
+    ProjectorUnsupportedCommandError,
+    discover,
+    get_adcp_picture_mode_options,
+    get_feature_values,
+    get_projector_series,
+    get_series_feature_values,
+    normalize_model_name,
+    parse_sdap_packet,
+)
 from sony_projector_protocol.adcp import AdcpClient
 from sony_projector_protocol.discovery import DiscoveredProjector
 from sony_projector_protocol.exceptions import UnsupportedCommandError
@@ -82,6 +103,38 @@ def test_adcp_signal_command() -> None:
     asyncio.run(run())
 
 
+def test_adcp_input_command() -> None:
+    async def run() -> None:
+        def respond(payload: bytes) -> bytes:
+            if payload == b"input ?\r\n":
+                return b"input=hdmi1\r\n"
+            if payload == b'input "hdmi2"\r\n':
+                return b"ok\r\n"
+            raise AssertionError(payload)
+
+        transport = FakeTransport(respond)
+        client = AdcpClient("192.0.2.10", transport=transport)
+
+        assert await client.get_input() == "hdmi1"
+        await client.set_input("hdmi2")
+        assert transport.requests == [b"input ?\r\n", b'input "hdmi2"\r\n']
+
+    asyncio.run(run())
+
+
+def test_adcp_input_rejects_unsupported_value() -> None:
+    async def run() -> None:
+        transport = FakeTransport(lambda payload: b"ok\r\n")
+        client = AdcpClient("192.0.2.10", transport=transport)
+
+        with pytest.raises(PackageUnsupportedCommandError):
+            await client.set_input("display_port")
+
+        assert transport.requests == []
+
+    asyncio.run(run())
+
+
 def test_adcp_picture_mode_command() -> None:
     async def run() -> None:
         def respond(payload: bytes) -> bytes:
@@ -101,6 +154,348 @@ def test_adcp_picture_mode_command() -> None:
     asyncio.run(run())
 
 
+@pytest.mark.parametrize(
+    ("response", "expected"),
+    (
+        (b"picture_mode=cinema_film1\r\n", "cinema_film1"),
+        (b'picture_mode="cinema_film1"\r\n', "cinema_film1"),
+        (b'picture_mode "cinema_film1"\r\n', "cinema_film1"),
+        (b'"cinema_film1"\r\n', "cinema_film1"),
+        (b"cinema_film1\r\n", "cinema_film1"),
+    ),
+)
+def test_adcp_picture_mode_getter_parses_response_shapes(response: bytes, expected: str) -> None:
+    async def run() -> None:
+        transport = FakeTransport(lambda payload: response)
+        client = AdcpClient("192.0.2.10", transport=transport)
+
+        assert await client.get_picture_mode() == expected
+        assert transport.requests == [b"picture_mode ?\r\n"]
+
+    asyncio.run(run())
+
+
+def test_adcp_picture_mode_getter_parses_command_value_response() -> None:
+    async def run() -> None:
+        transport = FakeTransport(lambda payload: b'picture_mode "cinema_film1"\r\n')
+        client = AdcpClient("192.0.2.10", transport=transport)
+
+        assert await client.get_picture_mode() == "cinema_film1"
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize(
+    "mode",
+    (
+        "cinema_film1",
+        "cinema_film2",
+        "reference",
+        "tv",
+        "photo",
+        "brt_cinema",
+        "brt_tv",
+        "user",
+        "user1",
+        "user2",
+        "user3",
+        "cinema_digital",
+        "game",
+    ),
+)
+def test_adcp_picture_mode_accepts_sony_video_projector_values(mode: str) -> None:
+    async def run() -> None:
+        transport = FakeTransport(lambda payload: b"ok\r\n")
+        client = AdcpClient("192.0.2.10", transport=transport)
+
+        await client.set_picture_mode(mode)
+
+        assert transport.requests == [f'picture_mode "{mode}"\r\n'.encode("ascii")]
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize(
+    "mode",
+    (
+        "dynamic",
+        "standard",
+        "brt_priority",
+        "multi_screen",
+        "presentation",
+        "blackboard",
+        "whiteboard",
+        "cinema",
+        "vivid",
+        "srgb",
+    ),
+)
+def test_adcp_picture_mode_accepts_sony_data_projector_values(mode: str) -> None:
+    async def run() -> None:
+        transport = FakeTransport(lambda payload: b"ok\r\n")
+        client = AdcpClient("192.0.2.10", transport=transport)
+
+        await client.set_picture_mode(mode)
+
+        assert transport.requests == [f'picture_mode "{mode}"\r\n'.encode("ascii")]
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize(
+    ("mode", "device_value"),
+    (
+        ("bright_cinema", "brt_cinema"),
+        ("Bright TV", "brt_tv"),
+        ('"cinema_film1"', "cinema_film1"),
+    ),
+)
+def test_adcp_picture_mode_normalizes_common_aliases(mode: str, device_value: str) -> None:
+    async def run() -> None:
+        transport = FakeTransport(lambda payload: b"ok\r\n")
+        client = AdcpClient("192.0.2.10", transport=transport)
+
+        await client.set_picture_mode(mode)
+
+        assert transport.requests == [f'picture_mode "{device_value}"\r\n'.encode("ascii")]
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("mode", ("sports", "movie_bright", "cinema_bright"))
+def test_adcp_picture_mode_rejects_unsupported_value(mode: str) -> None:
+    async def run() -> None:
+        transport = FakeTransport(lambda payload: b"ok\r\n")
+        client = AdcpClient("192.0.2.10", transport=transport)
+
+        with pytest.raises(PackageUnsupportedCommandError):
+            await client.set_picture_mode(mode)
+
+        assert transport.requests == []
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize(
+    ("model", "expected"),
+    (
+        (
+            "VPL-XW5000",
+            (
+                "cinema_film1",
+                "cinema_film2",
+                "reference",
+                "tv",
+                "photo",
+                "brt_cinema",
+                "brt_tv",
+                "game",
+                "user1",
+                "user3",
+            ),
+        ),
+        (
+            "VPL-VW5000",
+            (
+                "cinema_film1",
+                "cinema_film2",
+                "reference",
+                "tv",
+                "photo",
+                "brt_cinema",
+                "brt_tv",
+                "game",
+                "user1",
+                "user2",
+                "user3",
+                "cinema_digital",
+            ),
+        ),
+        (
+            "VPL-VW285ES",
+            (
+                "cinema_film1",
+                "cinema_film2",
+                "reference",
+                "tv",
+                "photo",
+                "brt_cinema",
+                "brt_tv",
+                "game",
+                "user",
+            ),
+        ),
+        (
+            "VPL-VW315ES",
+            (
+                "cinema_film1",
+                "cinema_film2",
+                "reference",
+                "tv",
+                "photo",
+                "brt_cinema",
+                "brt_tv",
+                "game",
+                "user",
+            ),
+        ),
+        ("VPL-FHZ120L", ("dynamic", "standard", "brt_priority", "multi_screen", "srgb")),
+        (
+            "VPL-EX345",
+            ("dynamic", "standard", "presentation", "blackboard", "whiteboard", "cinema", "srgb"),
+        ),
+        (
+            "VPL-EX575",
+            ("dynamic", "standard", "presentation", "blackboard", "whiteboard", "cinema", "vivid"),
+        ),
+    ),
+)
+def test_adcp_picture_mode_options_for_known_models(model: str, expected: tuple[str, ...]) -> None:
+    assert get_adcp_picture_mode_options(model) == expected
+    assert get_feature_values(model, FEATURE_ADCP_PICTURE_MODE) == expected
+    assert get_feature_values(model, FEATURE_ADCP_PICTURE_MODE, protocol=PROTOCOL_ADCP) == expected
+
+
+@pytest.mark.parametrize(
+    ("model", "expected"),
+    (
+        ("VPL-VW285ES", ("hdmi1", "hdmi2")),
+        ("VPL-VZ1000ES", ("hdmi1", "hdmi2", "hdmi3", "hdmi4")),
+        ("VPL-FHZ120L", ("rgb1", "rgb2", "dvi1", "hdmi1", "hdbaset1", "option1", "web_content")),
+        (
+            "VPL-EX345",
+            ("video1", "svideo1", "rgb1", "rgb2", "hdmi1", "hdmi2", "network", "usb_a", "usb_b"),
+        ),
+        ("VPL-U300WZ", ("rgb1", "hdmi1", "hdbaset1")),
+    ),
+)
+def test_adcp_input_options_for_known_models(model: str, expected: tuple[str, ...]) -> None:
+    assert get_feature_values(model, FEATURE_ADCP_INPUT) == expected
+    assert get_feature_values(model, FEATURE_ADCP_INPUT, protocol=PROTOCOL_ADCP) == expected
+
+
+@pytest.mark.parametrize(
+    ("model", "expected"),
+    (
+        (
+            "VPL-VW285ES",
+            ("bt709", "color_space1", "color_space2", "color_space3", "bt2020", "custom"),
+        ),
+        (
+            "VPL-VW5000",
+            (
+                "bt709",
+                "bt2020",
+                "adobe_rgb",
+                "color_space1",
+                "color_space2",
+                "color_space3",
+                "custom1",
+                "custom2",
+                "dci",
+            ),
+        ),
+        ("VPL-HW65ES", ("bt709", "color_space1", "color_space2", "color_space3", "custom")),
+        ("VPL-HW45ES", ("bt709", "color_space1", "color_space2", "color_space3")),
+        ("VPL-FHZ120L", ("custom1", "custom2", "custom3")),
+        ("VPL-P500HZ", ("custom1", "custom2", "custom3")),
+    ),
+)
+def test_adcp_color_space_options_for_known_models(model: str, expected: tuple[str, ...]) -> None:
+    assert get_feature_values(model, FEATURE_ADCP_COLOR_SPACE) == expected
+    assert get_feature_values(model, FEATURE_ADCP_COLOR_SPACE, protocol=PROTOCOL_ADCP) == expected
+
+
+@pytest.mark.parametrize(
+    ("model", "normalized"),
+    (
+        (" vpl-xw5000 ", "VPL-XW5000"),
+        ("xw5000", "VPL-XW5000"),
+        ("vw-365es", "VPL-VW365ES"),
+        ("VPL_XW5000", "VPL-XW5000"),
+    ),
+)
+def test_capability_model_normalization(model: str, normalized: str) -> None:
+    assert normalize_model_name(model) == normalized
+    assert get_adcp_picture_mode_options(model) == get_adcp_picture_mode_options(normalized)
+
+
+def test_capability_lookup_returns_none_for_unknown_model_or_feature() -> None:
+    assert get_projector_series("VPL-NOTREAL") is None
+    assert get_projector_series("VPL-NOTREAL", protocol=PROTOCOL_ADCP) is None
+    assert get_adcp_picture_mode_options("VPL-NOTREAL") is None
+    assert get_feature_values("VPL-NOTREAL", FEATURE_ADCP_INPUT) is None
+    assert get_feature_values("VPL-NOTREAL", FEATURE_ADCP_PICTURE_MODE) is None
+    assert get_feature_values("VPL-NOTREAL", FEATURE_ADCP_COLOR_SPACE) is None
+    assert get_feature_values("VPL-XW5000", "not_a_feature") is None
+    assert get_feature_values("VPL-XW5000", "picture_mode") is None
+    assert get_feature_values("VPL-XW5000", FEATURE_SDCP_CALIBRATION_PRESET) == SDCP_CALIBRATION_PRESET_VALUES
+
+
+def test_capability_series_lookup() -> None:
+    series = get_projector_series("VPL-XW5000")
+
+    assert series is not None
+    assert series.key == "adcp_video_xw5000"
+    assert series.display_name == "XW5000"
+    assert get_projector_series("VPL-XW5000", protocol=PROTOCOL_ADCP) == series
+    assert get_series_feature_values(series.key, FEATURE_ADCP_PICTURE_MODE) == get_adcp_picture_mode_options(
+        "VPL-XW5000"
+    )
+    assert get_series_feature_values(series.key, "not_a_feature") is None
+
+
+def test_sdcp_capability_lookup_allows_any_returned_model() -> None:
+    known_model_series = get_projector_series("VPL-XW5000", protocol=PROTOCOL_SDCP)
+    unknown_model_series = get_projector_series("VPL-NOTREAL", protocol=PROTOCOL_SDCP)
+
+    assert known_model_series is not None
+    assert known_model_series.key == "sdcp_any_model"
+    assert unknown_model_series == known_model_series
+    assert get_feature_values("VPL-XW5000", FEATURE_SDCP_CALIBRATION_PRESET, protocol=PROTOCOL_SDCP) == (
+        SDCP_CALIBRATION_PRESET_VALUES
+    )
+    assert get_feature_values("VPL-NOTREAL", FEATURE_SDCP_CALIBRATION_PRESET, protocol=PROTOCOL_SDCP) == (
+        SDCP_CALIBRATION_PRESET_VALUES
+    )
+    assert get_feature_values("VPL-NOTREAL", FEATURE_SDCP_CALIBRATION_PRESET) == SDCP_CALIBRATION_PRESET_VALUES
+    assert get_feature_values("VPL-NOTREAL", FEATURE_SDCP_INPUT) == SDCP_INPUT_VALUES
+    assert get_feature_values("VPL-XW5000", FEATURE_SDCP_COLOR_SPACE, protocol=PROTOCOL_SDCP) == (
+        SDCP_COLOR_SPACE_VALUES
+    )
+    assert get_feature_values("VPL-NOTREAL", FEATURE_SDCP_COLOR_SPACE) == SDCP_COLOR_SPACE_VALUES
+
+
+def test_capability_lookup_does_not_cross_protocol_feature_keys() -> None:
+    assert get_feature_values("VPL-XW5000", FEATURE_ADCP_INPUT, protocol=PROTOCOL_SDCP) is None
+    assert get_feature_values("VPL-XW5000", FEATURE_ADCP_PICTURE_MODE, protocol=PROTOCOL_SDCP) is None
+    assert get_feature_values("VPL-XW5000", FEATURE_ADCP_COLOR_SPACE, protocol=PROTOCOL_SDCP) is None
+    assert get_feature_values("VPL-XW5000", FEATURE_SDCP_CALIBRATION_PRESET, protocol=PROTOCOL_ADCP) is None
+    assert get_feature_values("VPL-XW5000", FEATURE_SDCP_COLOR_SPACE, protocol=PROTOCOL_ADCP) is None
+    assert get_feature_values("VPL-XW5000", FEATURE_SDCP_INPUT, protocol=PROTOCOL_ADCP) is None
+    assert get_feature_values("VPL-NOTREAL", FEATURE_ADCP_PICTURE_MODE, protocol=PROTOCOL_SDCP) is None
+    assert get_series_feature_values("sdcp_any_model", FEATURE_ADCP_PICTURE_MODE) is None
+    assert get_series_feature_values("sdcp_any_model", FEATURE_ADCP_COLOR_SPACE) is None
+    assert get_series_feature_values("sdcp_any_model", FEATURE_ADCP_INPUT) is None
+
+
+def test_capability_video_model_list_uses_official_series_mapping() -> None:
+    assert get_projector_series("VPL-VW315ES").display_name == "VW365ES"  # type: ignore[union-attr]
+    assert get_projector_series("VPL-VW385ES").display_name == "VW360ES"  # type: ignore[union-attr]
+    assert get_projector_series("VPL-VW1025ES").display_name == "VW890ES/VW870ES"  # type: ignore[union-attr]
+    assert get_projector_series("VPL-XW5100").display_name == "XW5100"  # type: ignore[union-attr]
+
+
+def test_capability_models_map_to_one_series() -> None:
+    models_by_protocol: dict[tuple[str, str], list[str]] = {}
+    for series in SERIES_BY_KEY.values():
+        for model in series.models:
+            key = (series.protocol, normalize_model_name(model))
+            models_by_protocol.setdefault(key, []).append(series.key)
+
+    assert {model: keys for model, keys in models_by_protocol.items() if len(keys) > 1} == {}
+
+
 def test_adcp_color_space_command() -> None:
     async def run() -> None:
         def respond(payload: bytes) -> bytes:
@@ -116,6 +511,19 @@ def test_adcp_color_space_command() -> None:
         assert await client.get_color_space() == "bt709"
         await client.set_color_space("bt2020")
         assert transport.requests == [b"color_space ?\r\n", b'color_space "bt2020"\r\n']
+
+    asyncio.run(run())
+
+
+def test_adcp_color_space_rejects_unsupported_value() -> None:
+    async def run() -> None:
+        transport = FakeTransport(lambda payload: b"ok\r\n")
+        client = AdcpClient("192.0.2.10", transport=transport)
+
+        with pytest.raises(PackageUnsupportedCommandError):
+            await client.set_color_space("rec709")
+
+        assert transport.requests == []
 
     asyncio.run(run())
 
@@ -407,7 +815,7 @@ def test_sdcp_input_commands_use_pj_talk_frames() -> None:
         client = SdcpClient("192.0.2.10", transport=transport)
 
         assert await client.get_input() == "hdmi1"
-        await client.set_input("hdmi2")
+        await client.set_input("HDMI 2")
         assert transport.requests == [get_input, set_hdmi2]
 
     asyncio.run(run())
@@ -485,7 +893,7 @@ def test_sdcp_getters_use_expected_item_numbers() -> None:
             ("get_aspect_ratio", 0x0020, 0x000C, "zoom_1_85"),
             ("get_gamma_correction", 0x0022, 0x0005, 5),
             ("get_picture_muting", 0x0030, 0x0000, "off"),
-            ("get_color_space", 0x003B, 0x0008, 8),
+            ("get_color_space", 0x003B, 0x0008, "bt2020"),
             ("get_motionflow", 0x0059, 0x0005, "true_cinema"),
             ("get_2d_3d_display_select", 0x0060, 0x0002, "2d"),
             ("get_3d_format", 0x0061, 0x0001, "side_by_side"),
@@ -529,6 +937,7 @@ def test_sdcp_setters_use_expected_item_numbers_and_values() -> None:
             ("set_2d_3d_display_select", "2d", 0x0060, 0x0002),
             ("set_3d_format", "side_by_side", 0x0061, 0x0001),
             ("set_picture_position", "custom_2", 0x0066, 0x0003),
+            ("set_color_space", "bt2020", 0x003B, 0x0008),
             ("set_hdmi1_dynamic_range", "full", 0x006E, 0x0002),
             ("set_hdmi2_dynamic_range", "limited", 0x006F, 0x0001),
             ("set_hdr", "auto", 0x007C, 0x0002),
@@ -552,12 +961,31 @@ def test_sdcp_setters_use_expected_item_numbers_and_values() -> None:
     asyncio.run(run())
 
 
+def test_sdcp_color_space_setter_normalizes_common_value_shapes() -> None:
+    async def run() -> None:
+        def respond(payload: bytes) -> bytes:
+            command = payload[7:9]
+            return b"\x02\x0aSONY\x01" + command + b"\x00"
+
+        transport = FakeTransport(respond)
+        client = SdcpClient("192.0.2.10", transport=transport)
+
+        await client.set_color_space("Color Space 1")
+
+        assert transport.requests == [b"\x02\x0aSONY\x00\x00\x3b\x02\x00\x03"]
+
+    asyncio.run(run())
+
+
 def test_sdcp_setter_rejects_unknown_value() -> None:
     async def run() -> None:
         client = SdcpClient("192.0.2.10", transport=FakeTransport(lambda payload: b""))
 
         with pytest.raises(PackageUnsupportedCommandError):
             await client.set_hdr("definitely_not_hdr")
+
+        with pytest.raises(PackageUnsupportedCommandError):
+            await client.set_color_space("rec709")
 
     asyncio.run(run())
 
@@ -606,7 +1034,6 @@ def test_projector_facade_rejects_wrong_protocol_command() -> None:
 
         with pytest.raises(PackageUnsupportedCommandError):
             await projector.get_signal()
-
 
     asyncio.run(run())
 
@@ -697,7 +1124,7 @@ def test_projector_facade_exposes_adcp_picture_mode_getter_and_setter() -> None:
     asyncio.run(run())
 
 
-def test_projector_facade_exposes_adcp_color_space_getter_and_setter() -> None:
+def test_projector_facade_exposes_color_space_getter_and_setter_for_adcp() -> None:
     async def run() -> None:
         def respond(payload: bytes) -> bytes:
             if payload == b"color_space ?\r\n":
@@ -714,6 +1141,31 @@ def test_projector_facade_exposes_adcp_color_space_getter_and_setter() -> None:
         assert await projector.get_color_space() == "bt2020"
         await projector.set_color_space("bt709")
         assert transport.requests == [b"color_space ?\r\n", b'color_space "bt709"\r\n']
+
+    asyncio.run(run())
+
+
+def test_projector_facade_exposes_color_space_getter_and_setter_for_sdcp() -> None:
+    async def run() -> None:
+        def respond(payload: bytes) -> bytes:
+            command = payload[7:9]
+            if payload == b"\x02\x0aSONY\x01\x00\x3b\x00":
+                return b"\x02\x0aSONY\x01" + command + b"\x02\x00\x08"
+            if payload == b"\x02\x0aSONY\x00\x00\x3b\x02\x00\x00":
+                return b"\x02\x0aSONY\x01" + command + b"\x00"
+            raise AssertionError(payload.hex(" "))
+
+        transport = FakeTransport(respond)
+        projector = Projector("192.0.2.10", protocol="sdcp", transport=transport)
+
+        await projector.connect()
+
+        assert await projector.get_color_space() == "bt2020"
+        await projector.set_color_space("bt709")
+        assert transport.requests == [
+            b"\x02\x0aSONY\x01\x00\x3b\x00",
+            b"\x02\x0aSONY\x00\x00\x3b\x02\x00\x00",
+        ]
 
     asyncio.run(run())
 
