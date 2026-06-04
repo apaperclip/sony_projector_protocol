@@ -69,3 +69,11 @@ markers = [
     "slow: marks tests as slow",
     "unit: fast offline tests",
 ]
+[tool.flit.sdist]
+exclude = [
+    ".github/**",
+    ".devcontainer/**",
+    ".vscode/**",
+    ".pypirc",
+    "**/*.bak",
+]
