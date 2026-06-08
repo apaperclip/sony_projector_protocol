@@ -109,7 +109,7 @@ Template package names should not appear in distributed metadata or documentatio
 
 ## Runtime Compatibility
 
-- Python 3.11+ is recommended for Home Assistant alignment.
+- Python 3.14.2+ is required for Home Assistant alignment.
 - Runtime dependencies should be minimal. Prefer the standard library for sockets, asyncio streams, dataclasses, enums, and logging.
 - Optional dependencies should be isolated behind extras.
 
